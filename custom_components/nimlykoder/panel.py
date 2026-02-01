@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from homeassistant.components import frontend, panel_custom
+from homeassistant.components import panel_custom
+from homeassistant.components.frontend import async_remove_panel
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PANEL_NAME, PANEL_TITLE, PANEL_ICON
@@ -17,27 +19,22 @@ async def async_register_panel(hass: HomeAssistant) -> None:
     try:
         # Register URL for serving the panel frontend files
         frontend_path = Path(__file__).parent / "frontend" / "dist"
-        
+
+        # Register static path for frontend files
         await hass.http.async_register_static_paths(
-            [
-                {
-                    "url_path": f"/{DOMAIN}_panel",
-                    "path": str(frontend_path),
-                }
-            ]
+            [StaticPathConfig(f"/{DOMAIN}_panel", str(frontend_path), cache_headers=False)]
         )
 
         # Register the custom panel
         await panel_custom.async_register_panel(
             hass,
+            webcomponent_name="nimlykoder-panel",
             frontend_url_path=PANEL_NAME,
-            webcomponent_name=f"{DOMAIN}-panel",
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
             module_url=f"/{DOMAIN}_panel/nimlykoder-panel.js",
             embed_iframe=False,
             require_admin=False,
-            config={},
         )
 
         _LOGGER.info("Registered Nimlykoder panel")
@@ -49,7 +46,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
 async def async_unregister_panel(hass: HomeAssistant) -> None:
     """Unregister the Nimlykoder panel."""
     try:
-        hass.components.frontend.async_remove_panel(PANEL_NAME)
+        async_remove_panel(hass, PANEL_NAME)
         _LOGGER.info("Unregistered Nimlykoder panel")
     except Exception as err:
         _LOGGER.error("Failed to unregister panel: %s", err)

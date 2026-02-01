@@ -9,7 +9,6 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-import homeassistant.helpers.config_validation as cv
 
 from .const import (
     DOMAIN,
@@ -32,6 +31,22 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _parse_reserved_slots(value: Any) -> list[int]:
+    """Parse reserved slots from string or list."""
+    if isinstance(value, list):
+        return [int(x) for x in value if str(x).strip()]
+    if isinstance(value, str):
+        if not value.strip():
+            return []
+        return [int(x.strip()) for x in value.split(",") if x.strip()]
+    return []
+
+
+def _format_reserved_slots(slots: list[int]) -> str:
+    """Format reserved slots list as comma-separated string."""
+    return ", ".join(str(x) for x in slots)
+
+
 class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Nimlykoder."""
 
@@ -52,10 +67,16 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(DOMAIN)
                 self._abort_if_unique_id_configured()
 
+                # Convert reserved_slots from string to list
+                options = dict(user_input)
+                options[CONF_RESERVED_SLOTS] = _parse_reserved_slots(
+                    user_input.get(CONF_RESERVED_SLOTS, "")
+                )
+
                 return self.async_create_entry(
                     title=user_input.get("name", "Nimlykoder"),
                     data={},
-                    options=user_input,
+                    options=options,
                 )
 
         # Build schema with defaults
@@ -70,8 +91,9 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Coerce(int), vol.Range(min=0, max=99)
                 ),
                 vol.Required(
-                    CONF_RESERVED_SLOTS, default=DEFAULT_RESERVED_SLOTS
-                ): cv.ensure_list,
+                    CONF_RESERVED_SLOTS,
+                    default=_format_reserved_slots(DEFAULT_RESERVED_SLOTS),
+                ): str,
                 vol.Required(CONF_AUTO_EXPIRE, default=DEFAULT_AUTO_EXPIRE): bool,
                 vol.Required(CONF_CLEANUP_TIME, default=DEFAULT_CLEANUP_TIME): str,
                 vol.Required(
@@ -111,10 +133,20 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
             if user_input[CONF_SLOT_MIN] > user_input[CONF_SLOT_MAX]:
                 errors["base"] = "invalid_slot_range"
             else:
-                return self.async_create_entry(title="", data=user_input)
+                # Convert reserved_slots from string to list
+                options = dict(user_input)
+                options[CONF_RESERVED_SLOTS] = _parse_reserved_slots(
+                    user_input.get(CONF_RESERVED_SLOTS, "")
+                )
+                return self.async_create_entry(title="", data=options)
 
         # Get current options
         options = self.config_entry.options
+
+        # Format reserved_slots for display
+        current_reserved = options.get(CONF_RESERVED_SLOTS, DEFAULT_RESERVED_SLOTS)
+        if isinstance(current_reserved, list):
+            current_reserved = _format_reserved_slots(current_reserved)
 
         data_schema = vol.Schema(
             {
@@ -132,8 +164,8 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=99)),
                 vol.Required(
                     CONF_RESERVED_SLOTS,
-                    default=options.get(CONF_RESERVED_SLOTS, DEFAULT_RESERVED_SLOTS),
-                ): cv.ensure_list,
+                    default=current_reserved,
+                ): str,
                 vol.Required(
                     CONF_AUTO_EXPIRE,
                     default=options.get(CONF_AUTO_EXPIRE, DEFAULT_AUTO_EXPIRE),

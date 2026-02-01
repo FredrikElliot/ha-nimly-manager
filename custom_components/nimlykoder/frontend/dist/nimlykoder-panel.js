@@ -1,4 +1,8 @@
-import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/core/lit-core.min.js";
+import {
+    LitElement,
+    html,
+    css,
+} from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
 
 class NimlykoderPanel extends LitElement {
     static get properties() {
@@ -10,11 +14,12 @@ class NimlykoderPanel extends LitElement {
             codes: { type: Array },
             loading: { type: Boolean },
             error: { type: String },
+            searchQuery: { type: String },
             showAddDialog: { type: Boolean },
             showEditDialog: { type: Boolean },
             showRemoveDialog: { type: Boolean },
-            editingSlot: { type: Number },
-            removingSlot: { type: Number },
+            editingCode: { type: Object },
+            removingCode: { type: Object },
         };
     }
 
@@ -23,116 +28,546 @@ class NimlykoderPanel extends LitElement {
         this.codes = [];
         this.loading = true;
         this.error = null;
+        this.searchQuery = "";
         this.showAddDialog = false;
         this.showEditDialog = false;
         this.showRemoveDialog = false;
-        this.editingSlot = null;
-        this.removingSlot = null;
+        this.editingCode = null;
+        this.removingCode = null;
     }
 
     static get styles() {
         return css`
             :host {
                 display: block;
-                padding: 16px;
-                font-family: var(--paper-font-body1_-_font-family);
+                --primary-color: var(--ha-primary-color, #03a9f4);
+                --text-primary: var(--primary-text-color, #212121);
+                --text-secondary: var(--secondary-text-color, #727272);
+                --divider: var(--divider-color, #e0e0e0);
+                --card-bg: var(--card-background-color, #fff);
+                --bg: var(--primary-background-color, #fafafa);
             }
 
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 16px;
+            }
+
+            /* Header */
             .header {
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
-                margin-bottom: 16px;
+                justify-content: space-between;
+                margin-bottom: 24px;
+                flex-wrap: wrap;
+                gap: 16px;
             }
 
-            h1 {
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+
+            .header-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+            }
+
+            .header-icon svg {
+                width: 28px;
+                height: 28px;
+            }
+
+            .header-title h1 {
                 margin: 0;
                 font-size: 24px;
-                font-weight: 400;
-            }
-
-            ha-card {
-                margin-bottom: 16px;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-
-            th, td {
-                text-align: left;
-                padding: 12px;
-                border-bottom: 1px solid var(--divider-color);
-            }
-
-            th {
                 font-weight: 500;
-                color: var(--secondary-text-color);
+                color: var(--text-primary);
             }
 
-            tr:hover {
-                background: var(--paper-grey-100);
+            .header-title p {
+                margin: 4px 0 0 0;
+                font-size: 14px;
+                color: var(--text-secondary);
             }
 
-            .status-badge {
-                display: inline-block;
-                padding: 4px 8px;
+            /* Search and Actions Bar */
+            .toolbar {
+                display: flex;
+                gap: 12px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+            }
+
+            .search-container {
+                flex: 1;
+                min-width: 200px;
+                position: relative;
+            }
+
+            .search-input {
+                width: 100%;
+                padding: 12px 16px 12px 44px;
+                border: 1px solid var(--divider);
+                border-radius: 28px;
+                font-size: 16px;
+                background: var(--card-bg);
+                color: var(--text-primary);
+                outline: none;
+                transition: border-color 0.2s, box-shadow 0.2s;
+                box-sizing: border-box;
+            }
+
+            .search-input:focus {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 1px var(--primary-color);
+            }
+
+            .search-input::placeholder {
+                color: var(--text-secondary);
+            }
+
+            .search-icon {
+                position: absolute;
+                left: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--text-secondary);
+                pointer-events: none;
+            }
+
+            /* Buttons */
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 28px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .btn-primary {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+            }
+
+            .btn-primary:hover {
+                box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
+                transform: translateY(-1px);
+            }
+
+            .btn-secondary {
+                background: var(--card-bg);
+                color: var(--text-primary);
+                border: 1px solid var(--divider);
+            }
+
+            .btn-secondary:hover {
+                background: var(--bg);
+            }
+
+            .btn-danger {
+                background: #f44336;
+                color: white;
+            }
+
+            .btn-danger:hover {
+                background: #d32f2f;
+            }
+
+            .btn-text {
+                background: transparent;
+                color: var(--primary-color);
+                padding: 8px 16px;
+            }
+
+            .btn-text:hover {
+                background: rgba(3, 169, 244, 0.1);
+            }
+
+            .btn-icon {
+                width: 40px;
+                height: 40px;
+                padding: 0;
+                border-radius: 50%;
+                justify-content: center;
+            }
+
+            .btn svg {
+                width: 20px;
+                height: 20px;
+                flex-shrink: 0;
+            }
+
+            /* Stats Cards */
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            .stat-card {
+                background: var(--card-bg);
+                border-radius: 16px;
+                padding: 20px;
+                text-align: center;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+
+            .stat-value {
+                font-size: 32px;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+
+            .stat-label {
+                font-size: 13px;
+                color: var(--text-secondary);
+                margin-top: 4px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .stat-card.permanent .stat-value { color: #4caf50; }
+            .stat-card.guest .stat-value { color: #2196f3; }
+            .stat-card.expired .stat-value { color: #f44336; }
+
+            /* Person List */
+            .person-list {
+                display: grid;
+                gap: 12px;
+            }
+
+            .person-card {
+                background: var(--card-bg);
+                border-radius: 16px;
+                padding: 16px 20px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                transition: box-shadow 0.2s, transform 0.2s;
+            }
+
+            .person-card:hover {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            }
+
+            .person-avatar {
+                width: 52px;
+                height: 52px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                font-weight: 600;
+                color: white;
+                flex-shrink: 0;
+            }
+
+            .avatar-permanent {
+                background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+            }
+
+            .avatar-guest {
+                background: linear-gradient(135deg, #2196f3 0%, #1565c0 100%);
+            }
+
+            .avatar-expired {
+                background: linear-gradient(135deg, #9e9e9e 0%, #616161 100%);
+            }
+
+            .person-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .person-name {
+                font-size: 16px;
+                font-weight: 500;
+                color: var(--text-primary);
+                margin: 0 0 4px 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .person-details {
+                display: flex;
+                gap: 16px;
+                flex-wrap: wrap;
+            }
+
+            .person-detail {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 13px;
+                color: var(--text-secondary);
+            }
+
+            .person-detail svg {
+                width: 16px;
+                height: 16px;
+                opacity: 0.7;
+            }
+
+            .badge {
+                padding: 4px 12px;
                 border-radius: 12px;
                 font-size: 12px;
                 font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
 
-            .status-active {
-                background: var(--success-color, #4caf50);
-                color: white;
+            .badge-permanent {
+                background: #e8f5e9;
+                color: #2e7d32;
             }
 
-            .status-expired {
-                background: var(--error-color, #f44336);
-                color: white;
+            .badge-guest {
+                background: #e3f2fd;
+                color: #1565c0;
             }
 
-            .status-reserved {
-                background: var(--warning-color, #ff9800);
-                color: white;
+            .badge-expired {
+                background: #ffebee;
+                color: #c62828;
             }
 
-            .actions {
+            .person-actions {
                 display: flex;
                 gap: 8px;
             }
 
+            /* Empty State */
             .empty-state {
                 text-align: center;
-                padding: 40px;
-                color: var(--secondary-text-color);
+                padding: 60px 20px;
+                background: var(--card-bg);
+                border-radius: 16px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             }
 
-            .error-message {
-                background: var(--error-color);
+            .empty-icon {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 color: white;
-                padding: 12px;
-                border-radius: 4px;
+            }
+
+            .empty-icon svg {
+                width: 40px;
+                height: 40px;
+            }
+
+            .empty-state h2 {
+                margin: 0 0 8px 0;
+                font-size: 20px;
+                font-weight: 500;
+                color: var(--text-primary);
+            }
+
+            .empty-state p {
+                margin: 0 0 24px 0;
+                color: var(--text-secondary);
+            }
+
+            /* Loading */
+            .loading-container {
+                text-align: center;
+                padding: 60px 20px;
+            }
+
+            .spinner {
+                width: 48px;
+                height: 48px;
+                border: 3px solid var(--divider);
+                border-top-color: var(--primary-color);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 16px;
+            }
+
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+
+            /* Error */
+            .error-banner {
+                background: #ffebee;
+                color: #c62828;
+                padding: 12px 16px;
+                border-radius: 8px;
                 margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
             }
 
-            mwc-button {
-                margin: 4px;
+            .error-banner svg {
+                width: 24px;
+                height: 24px;
+                flex-shrink: 0;
             }
 
-            ha-dialog {
-                --mdc-dialog-min-width: 500px;
+            .error-banner span {
+                flex: 1;
             }
 
-            .dialog-content {
+            /* Dialog Overlay */
+            .dialog-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
                 padding: 16px;
             }
 
-            ha-textfield, ha-select {
-                display: block;
-                margin-bottom: 16px;
+            .dialog {
+                background: var(--card-bg);
+                border-radius: 16px;
                 width: 100%;
+                max-width: 480px;
+                max-height: 90vh;
+                overflow: auto;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            }
+
+            .dialog-header {
+                padding: 20px 24px;
+                border-bottom: 1px solid var(--divider);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .dialog-header h2 {
+                margin: 0;
+                font-size: 20px;
+                font-weight: 500;
+            }
+
+            .dialog-content {
+                padding: 24px;
+            }
+
+            .dialog-actions {
+                padding: 16px 24px;
+                border-top: 1px solid var(--divider);
+                display: flex;
+                justify-content: flex-end;
+                gap: 12px;
+            }
+
+            /* Form */
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-group label {
+                display: block;
+                margin-bottom: 8px;
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--text-primary);
+            }
+
+            .form-group input,
+            .form-group select {
+                width: 100%;
+                padding: 12px 16px;
+                border: 1px solid var(--divider);
+                border-radius: 8px;
+                font-size: 16px;
+                background: var(--bg);
+                color: var(--text-primary);
+                outline: none;
+                transition: border-color 0.2s;
+                box-sizing: border-box;
+            }
+
+            .form-group input:focus,
+            .form-group select:focus {
+                border-color: var(--primary-color);
+            }
+
+            .form-group small {
+                display: block;
+                margin-top: 6px;
+                font-size: 12px;
+                color: var(--text-secondary);
+            }
+
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+
+            /* Responsive */
+            @media (max-width: 600px) {
+                .header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .toolbar {
+                    flex-direction: column;
+                }
+
+                .search-container {
+                    width: 100%;
+                }
+
+                .person-card {
+                    flex-wrap: wrap;
+                }
+
+                .person-actions {
+                    width: 100%;
+                    justify-content: flex-end;
+                    margin-top: 8px;
+                    padding-top: 12px;
+                    border-top: 1px solid var(--divider);
+                }
+
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+
+                .stats {
+                    grid-template-columns: repeat(2, 1fr);
+                }
             }
         `;
     }
@@ -145,6 +580,7 @@ class NimlykoderPanel extends LitElement {
     async loadCodes() {
         try {
             this.loading = true;
+            this.error = null;
             const result = await this.hass.callWS({
                 type: "nimlykoder/list",
             });
@@ -156,253 +592,412 @@ class NimlykoderPanel extends LitElement {
         }
     }
 
-    async addCode(data) {
-        try {
-            await this.hass.callWS({
-                type: "nimlykoder/add",
-                ...data,
-            });
-            this.showAddDialog = false;
-            await this.loadCodes();
-        } catch (err) {
-            this.error = err.message;
-        }
+    get filteredCodes() {
+        if (!this.searchQuery) return this.codes;
+        const query = this.searchQuery.toLowerCase();
+        return this.codes.filter(
+            (code) =>
+                code.name.toLowerCase().includes(query) ||
+                code.slot.toString().includes(query) ||
+                code.type.toLowerCase().includes(query)
+        );
     }
 
-    async removeCode(slot) {
-        try {
-            await this.hass.callWS({
-                type: "nimlykoder/remove",
-                slot: slot,
-            });
-            this.showRemoveDialog = false;
-            await this.loadCodes();
-        } catch (err) {
-            this.error = err.message;
-        }
+    get stats() {
+        const total = this.codes.length;
+        const permanent = this.codes.filter((c) => c.type === "permanent").length;
+        const guest = this.codes.filter((c) => c.type === "guest").length;
+        const expired = this.codes.filter(
+            (c) => c.expiry && new Date(c.expiry) < new Date()
+        ).length;
+        return { total, permanent, guest, expired };
     }
 
-    async updateExpiry(slot, expiry) {
-        try {
-            await this.hass.callWS({
-                type: "nimlykoder/update_expiry",
-                slot: slot,
-                expiry: expiry,
-            });
-            this.showEditDialog = false;
-            await this.loadCodes();
-        } catch (err) {
-            this.error = err.message;
-        }
+    getInitials(name) {
+        return name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+    }
+
+    isExpired(code) {
+        return code.expiry && new Date(code.expiry) < new Date();
+    }
+
+    getAvatarClass(code) {
+        if (this.isExpired(code)) return "avatar-expired";
+        return code.type === "permanent" ? "avatar-permanent" : "avatar-guest";
+    }
+
+    getBadgeClass(code) {
+        if (this.isExpired(code)) return "badge-expired";
+        return code.type === "permanent" ? "badge-permanent" : "badge-guest";
+    }
+
+    getBadgeText(code) {
+        if (this.isExpired(code)) return "Expired";
+        return code.type === "permanent" ? "Permanent" : "Guest";
+    }
+
+    formatDate(dateStr) {
+        if (!dateStr) return "—";
+        const date = new Date(dateStr);
+        return date.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
     }
 
     render() {
         return html`
-            <div class="header">
-                <h1>Nimlykoder</h1>
-                <mwc-button raised @click=${() => (this.showAddDialog = true)}>
-                    Add Code
-                </mwc-button>
-            </div>
-
-            ${this.error
-                ? html`
-                      <div class="error-message">
-                          ${this.error}
-                          <mwc-icon-button
-                              icon="mdi:close"
-                              @click=${() => (this.error = null)}
-                          ></mwc-icon-button>
-                      </div>
-                  `
-                : ""}
-
-            <ha-card>
+            <div class="container">
+                ${this._renderHeader()}
+                ${this.error ? this._renderError() : ""}
                 ${this.loading
-                    ? html`<div style="padding: 40px; text-align: center;">Loading...</div>`
-                    : this.codes.length === 0
-                    ? html`
-                          <div class="empty-state">
-                              No codes configured. Click "Add Code" to get started.
-                          </div>
-                      `
+                    ? this._renderLoading()
                     : html`
-                          <table>
-                              <thead>
-                                  <tr>
-                                      <th>Slot</th>
-                                      <th>Name</th>
-                                      <th>Type</th>
-                                      <th>Expiry</th>
-                                      <th>Status</th>
-                                      <th>Actions</th>
-                                  </tr>
-                              </thead>
-                              <tbody>
-                                  ${this.codes.map((code) => this.renderCodeRow(code))}
-                              </tbody>
-                          </table>
+                          ${this._renderStats()}
+                          ${this._renderToolbar()}
+                          ${this._renderPersonList()}
                       `}
-            </ha-card>
-
-            ${this.renderAddDialog()} ${this.renderEditDialog()} ${this.renderRemoveDialog()}
+                ${this.showAddDialog ? this._renderAddDialog() : ""}
+                ${this.showEditDialog ? this._renderEditDialog() : ""}
+                ${this.showRemoveDialog ? this._renderRemoveDialog() : ""}
+            </div>
         `;
     }
 
-    renderCodeRow(code) {
-        const isExpired =
-            code.type === "guest" &&
-            code.expiry &&
-            new Date(code.expiry) < new Date();
-        const status = isExpired ? "expired" : "active";
-        const statusLabel = isExpired ? "Expired" : "Active";
-
+    _renderHeader() {
         return html`
-            <tr>
-                <td>${code.slot}</td>
-                <td>${code.name}</td>
-                <td>${code.type}</td>
-                <td>${code.expiry || "-"}</td>
-                <td>
-                    <span class="status-badge status-${status}">${statusLabel}</span>
-                </td>
-                <td>
-                    <div class="actions">
-                        <mwc-button
-                            outlined
-                            @click=${() => {
-                                this.editingSlot = code.slot;
-                                this.showEditDialog = true;
-                            }}
-                        >
-                            Edit
-                        </mwc-button>
-                        <mwc-button
-                            outlined
-                            @click=${() => {
-                                this.removingSlot = code.slot;
-                                this.showRemoveDialog = true;
-                            }}
-                        >
-                            Remove
-                        </mwc-button>
+            <div class="header">
+                <div class="header-left">
+                    <div class="header-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/>
+                        </svg>
                     </div>
-                </td>
-            </tr>
+                    <div class="header-title">
+                        <h1>Nimlykoder</h1>
+                        <p>Manage PIN codes for your Nimly lock</p>
+                    </div>
+                </div>
+            </div>
         `;
     }
 
-    renderAddDialog() {
-        if (!this.showAddDialog) return "";
+    _renderStats() {
+        const { total, permanent, guest, expired } = this.stats;
+        return html`
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value">${total}</div>
+                    <div class="stat-label">Total Codes</div>
+                </div>
+                <div class="stat-card permanent">
+                    <div class="stat-value">${permanent}</div>
+                    <div class="stat-label">Permanent</div>
+                </div>
+                <div class="stat-card guest">
+                    <div class="stat-value">${guest}</div>
+                    <div class="stat-label">Guest</div>
+                </div>
+                <div class="stat-card expired">
+                    <div class="stat-value">${expired}</div>
+                    <div class="stat-label">Expired</div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderToolbar() {
+        return html`
+            <div class="toolbar">
+                <div class="search-container">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/>
+                    </svg>
+                    <input
+                        type="text"
+                        class="search-input"
+                        placeholder="Search by name, slot, or type..."
+                        .value=${this.searchQuery}
+                        @input=${(e) => (this.searchQuery = e.target.value)}
+                    />
+                </div>
+                <button class="btn btn-primary" @click=${() => (this.showAddDialog = true)}>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                    </svg>
+                    Add Person
+                </button>
+            </div>
+        `;
+    }
+
+    _renderPersonList() {
+        const codes = this.filteredCodes;
+
+        if (this.codes.length === 0) {
+            return this._renderEmptyState();
+        }
+
+        if (codes.length === 0) {
+            return html`
+                <div class="empty-state">
+                    <h2>No results found</h2>
+                    <p>Try a different search term</p>
+                </div>
+            `;
+        }
 
         return html`
-            <ha-dialog
-                open
-                @closed=${() => (this.showAddDialog = false)}
-                .heading=${"Add New Code"}
-            >
-                <div class="dialog-content">
-                    <ha-textfield
-                        id="add-name"
-                        label="Name"
-                        required
-                    ></ha-textfield>
-                    <ha-textfield
-                        id="add-pin"
-                        label="PIN Code (4 digits)"
-                        type="password"
-                        pattern="[0-9]{4}"
-                        maxlength="4"
-                        required
-                    ></ha-textfield>
-                    <ha-select id="add-type" label="Type" required>
-                        <mwc-list-item value="permanent">Permanent</mwc-list-item>
-                        <mwc-list-item value="guest" selected>Guest</mwc-list-item>
-                    </ha-select>
-                    <ha-textfield
-                        id="add-expiry"
-                        label="Expiry Date (YYYY-MM-DD)"
-                        type="date"
-                    ></ha-textfield>
-                    <ha-textfield
-                        id="add-slot"
-                        label="Slot (leave empty for auto-assign)"
-                        type="number"
-                        min="0"
-                        max="99"
-                    ></ha-textfield>
-                </div>
-                <mwc-button slot="primaryAction" @click=${this._handleAddSubmit}>
-                    Save
-                </mwc-button>
-                <mwc-button slot="secondaryAction" dialogAction="cancel">
-                    Cancel
-                </mwc-button>
-            </ha-dialog>
+            <div class="person-list">
+                ${codes.map((code) => this._renderPersonCard(code))}
+            </div>
         `;
     }
 
-    renderEditDialog() {
-        if (!this.showEditDialog) return "";
-
-        const code = this.codes.find((c) => c.slot === this.editingSlot);
-        if (!code) return "";
-
+    _renderPersonCard(code) {
         return html`
-            <ha-dialog
-                open
-                @closed=${() => (this.showEditDialog = false)}
-                .heading=${"Edit Expiry"}
-            >
-                <div class="dialog-content">
-                    <ha-textfield
-                        id="edit-expiry"
-                        label="Expiry Date (YYYY-MM-DD)"
-                        type="date"
-                        .value=${code.expiry || ""}
-                    ></ha-textfield>
+            <div class="person-card">
+                <div class="person-avatar ${this.getAvatarClass(code)}">
+                    ${this.getInitials(code.name)}
                 </div>
-                <mwc-button slot="primaryAction" @click=${this._handleEditSubmit}>
-                    Update
-                </mwc-button>
-                <mwc-button slot="secondaryAction" dialogAction="cancel">
-                    Cancel
-                </mwc-button>
-            </ha-dialog>
+                <div class="person-info">
+                    <h3 class="person-name">${code.name}</h3>
+                    <div class="person-details">
+                        <span class="person-detail">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M17.13,17C15.92,18.85 14.11,20.24 12,20.92C9.89,20.24 8.08,18.85 6.87,17C6.53,16.5 6.24,16 6,15.47C6,13.82 8.71,12.47 12,12.47C15.29,12.47 18,13.79 18,15.47C17.76,16 17.47,16.5 17.13,17Z"/>
+                            </svg>
+                            Slot ${code.slot}
+                        </span>
+                        ${code.expiry
+                            ? html`
+                                  <span class="person-detail">
+                                      <svg viewBox="0 0 24 24" fill="currentColor">
+                                          <path d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/>
+                                      </svg>
+                                      ${this.isExpired(code) ? "Expired" : "Expires"} ${this.formatDate(code.expiry)}
+                                  </span>
+                              `
+                            : ""}
+                    </div>
+                </div>
+                <span class="badge ${this.getBadgeClass(code)}">${this.getBadgeText(code)}</span>
+                <div class="person-actions">
+                    <button
+                        class="btn btn-icon btn-secondary"
+                        @click=${() => {
+                            this.editingCode = code;
+                            this.showEditDialog = true;
+                        }}
+                        title="Edit"
+                    >
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="btn btn-icon btn-secondary"
+                        @click=${() => {
+                            this.removingCode = code;
+                            this.showRemoveDialog = true;
+                        }}
+                        title="Remove"
+                    >
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         `;
     }
 
-    renderRemoveDialog() {
-        if (!this.showRemoveDialog) return "";
-
+    _renderEmptyState() {
         return html`
-            <ha-dialog
-                open
-                @closed=${() => (this.showRemoveDialog = false)}
-                .heading=${"Remove Code"}
-            >
-                <div class="dialog-content">
-                    <p>Are you sure you want to remove this code?</p>
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                    </svg>
                 </div>
-                <mwc-button
-                    slot="primaryAction"
-                    @click=${() => this.removeCode(this.removingSlot)}
-                >
-                    Remove
-                </mwc-button>
-                <mwc-button slot="secondaryAction" dialogAction="cancel">
-                    Cancel
-                </mwc-button>
-            </ha-dialog>
+                <h2>No PIN codes yet</h2>
+                <p>Add your first person to get started with Nimlykoder</p>
+                <button class="btn btn-primary" @click=${() => (this.showAddDialog = true)}>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                    </svg>
+                    Add First Person
+                </button>
+            </div>
         `;
     }
 
-    _handleAddSubmit() {
+    _renderLoading() {
+        return html`
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Loading codes...</p>
+            </div>
+        `;
+    }
+
+    _renderError() {
+        return html`
+            <div class="error-banner">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                </svg>
+                <span>${this.error}</span>
+                <button class="btn btn-text" @click=${() => this.loadCodes()}>Retry</button>
+            </div>
+        `;
+    }
+
+    _renderAddDialog() {
+        return html`
+            <div class="dialog-overlay" @click=${this._closeAddDialog}>
+                <div class="dialog" @click=${(e) => e.stopPropagation()}>
+                    <div class="dialog-header">
+                        <h2>Add New Person</h2>
+                        <button class="btn btn-icon btn-text" @click=${this._closeAddDialog}>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="dialog-content">
+                        <div class="form-group">
+                            <label for="add-name">Name *</label>
+                            <input type="text" id="add-name" placeholder="e.g., John Doe" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="add-pin">PIN Code *</label>
+                            <input type="password" id="add-pin" placeholder="4-8 digits" pattern="[0-9]{4,8}" required />
+                            <small>Enter a 4-8 digit PIN code</small>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="add-type">Type *</label>
+                                <select id="add-type" @change=${this._onTypeChange}>
+                                    <option value="permanent">Permanent</option>
+                                    <option value="guest">Guest</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="add-slot">Slot</label>
+                                <input type="number" id="add-slot" min="0" max="99" placeholder="Auto" />
+                                <small>Leave empty for auto-assign</small>
+                            </div>
+                        </div>
+                        <div class="form-group" id="expiry-group" style="display: none;">
+                            <label for="add-expiry">Expiry Date</label>
+                            <input type="date" id="add-expiry" />
+                        </div>
+                    </div>
+                    <div class="dialog-actions">
+                        <button class="btn btn-secondary" @click=${this._closeAddDialog}>Cancel</button>
+                        <button class="btn btn-primary" @click=${this._handleAddSubmit}>Add Person</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderEditDialog() {
+        if (!this.editingCode) return "";
+        return html`
+            <div class="dialog-overlay" @click=${this._closeEditDialog}>
+                <div class="dialog" @click=${(e) => e.stopPropagation()}>
+                    <div class="dialog-header">
+                        <h2>Edit ${this.editingCode.name}</h2>
+                        <button class="btn btn-icon btn-text" @click=${this._closeEditDialog}>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="dialog-content">
+                        <div class="form-group">
+                            <label for="edit-expiry">Expiry Date</label>
+                            <input type="date" id="edit-expiry" .value=${this.editingCode.expiry || ""} />
+                            <small>Leave empty for no expiry (permanent access)</small>
+                        </div>
+                    </div>
+                    <div class="dialog-actions">
+                        <button class="btn btn-secondary" @click=${this._closeEditDialog}>Cancel</button>
+                        <button class="btn btn-primary" @click=${this._handleEditSubmit}>Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderRemoveDialog() {
+        if (!this.removingCode) return "";
+        return html`
+            <div class="dialog-overlay" @click=${this._closeRemoveDialog}>
+                <div class="dialog" @click=${(e) => e.stopPropagation()}>
+                    <div class="dialog-header">
+                        <h2>Remove Person</h2>
+                        <button class="btn btn-icon btn-text" @click=${this._closeRemoveDialog}>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="dialog-content">
+                        <p>Are you sure you want to remove <strong>${this.removingCode.name}</strong>?</p>
+                        <p style="margin-top: 12px; color: var(--text-secondary); font-size: 14px;">
+                            This will delete the PIN code from slot ${this.removingCode.slot} and remove it from the lock.
+                        </p>
+                    </div>
+                    <div class="dialog-actions">
+                        <button class="btn btn-secondary" @click=${this._closeRemoveDialog}>Cancel</button>
+                        <button class="btn btn-danger" @click=${this._handleRemove}>Remove</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _onTypeChange(e) {
+        const expiryGroup = this.shadowRoot.getElementById("expiry-group");
+        if (expiryGroup) {
+            expiryGroup.style.display = e.target.value === "guest" ? "block" : "none";
+        }
+    }
+
+    _closeAddDialog() {
+        this.showAddDialog = false;
+    }
+
+    _closeEditDialog() {
+        this.showEditDialog = false;
+        this.editingCode = null;
+    }
+
+    _closeRemoveDialog() {
+        this.showRemoveDialog = false;
+        this.removingCode = null;
+    }
+
+    async _handleAddSubmit() {
         const name = this.shadowRoot.getElementById("add-name").value;
         const pinCode = this.shadowRoot.getElementById("add-pin").value;
         const codeType = this.shadowRoot.getElementById("add-type").value;
         const expiry = this.shadowRoot.getElementById("add-expiry").value;
         const slot = this.shadowRoot.getElementById("add-slot").value;
+
+        if (!name || !pinCode) {
+            this.error = "Please fill in all required fields";
+            return;
+        }
 
         const data = {
             name: name,
@@ -418,12 +1013,47 @@ class NimlykoderPanel extends LitElement {
             data.slot = parseInt(slot);
         }
 
-        this.addCode(data);
+        try {
+            await this.hass.callWS({
+                type: "nimlykoder/add",
+                ...data,
+            });
+            this.showAddDialog = false;
+            await this.loadCodes();
+        } catch (err) {
+            this.error = err.message;
+        }
     }
 
-    _handleEditSubmit() {
+    async _handleEditSubmit() {
         const expiry = this.shadowRoot.getElementById("edit-expiry").value;
-        this.updateExpiry(this.editingSlot, expiry || null);
+
+        try {
+            await this.hass.callWS({
+                type: "nimlykoder/update_expiry",
+                slot: this.editingCode.slot,
+                expiry: expiry || null,
+            });
+            this.showEditDialog = false;
+            this.editingCode = null;
+            await this.loadCodes();
+        } catch (err) {
+            this.error = err.message;
+        }
+    }
+
+    async _handleRemove() {
+        try {
+            await this.hass.callWS({
+                type: "nimlykoder/remove",
+                slot: this.removingCode.slot,
+            });
+            this.showRemoveDialog = false;
+            this.removingCode = null;
+            await this.loadCodes();
+        } catch (err) {
+            this.error = err.message;
+        }
     }
 }
 

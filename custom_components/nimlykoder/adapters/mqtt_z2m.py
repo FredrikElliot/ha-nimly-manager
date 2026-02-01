@@ -4,11 +4,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 _LOGGER = logging.getLogger(__name__)
+
+# Set to True to enable actual MQTT communication
+# Set to False for development/testing without MQTT
+MQTT_ENABLED = False
 
 
 class MqttZ2mAdapter:
@@ -38,7 +41,12 @@ class MqttZ2mAdapter:
             }
         }
 
+        if not MQTT_ENABLED:
+            _LOGGER.info("[DEV MODE] Would publish add code for slot %s to %s: %s", slot, topic, payload)
+            return
+
         try:
+            from homeassistant.components import mqtt
             await mqtt.async_publish(self.hass, topic, payload, qos=1, retain=False)
             _LOGGER.info("Published add code for slot %s to %s", slot, topic)
         except Exception as err:
@@ -63,7 +71,12 @@ class MqttZ2mAdapter:
             }
         }
 
+        if not MQTT_ENABLED:
+            _LOGGER.info("[DEV MODE] Would publish remove code for slot %s to %s: %s", slot, topic, payload)
+            return
+
         try:
+            from homeassistant.components import mqtt
             await mqtt.async_publish(self.hass, topic, payload, qos=1, retain=False)
             _LOGGER.info("Published remove code for slot %s to %s", slot, topic)
         except Exception as err:
@@ -78,7 +91,12 @@ class MqttZ2mAdapter:
         Returns:
             True if MQTT is available, False otherwise
         """
+        if not MQTT_ENABLED:
+            _LOGGER.info("[DEV MODE] MQTT disabled, skipping connection check")
+            return True
+
         try:
+            from homeassistant.components import mqtt
             # Check if MQTT integration is loaded
             return mqtt.DOMAIN in self.hass.config.components
         except Exception as err:

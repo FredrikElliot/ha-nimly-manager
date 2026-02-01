@@ -175,11 +175,12 @@ automation:
   - Serves static frontend files
   - Integrates with HA sidebar
 
-- **Frontend (`frontend/dist/`)**: Web-based UI
+- **Frontend (`frontend/dist/`)**: Web component-based UI
+  - Custom element (nimlykoder-panel)
   - Table view of all codes
   - Modal dialogs for add/edit/remove
   - Real-time updates via WebSocket
-  - Responsive design
+  - Uses Lit Element framework
 
 ### Data Flow
 
@@ -295,7 +296,7 @@ custom_components/nimlykoder/
 │   └── mqtt_z2m.py     # MQTT/Zigbee2MQTT adapter
 ├── frontend/
 │   └── dist/
-│       └── index.html  # Panel UI
+│       └── nimlykoder-panel.js  # Panel web component
 └── translations/
     ├── en.json         # English translations
     └── sv.json         # Swedish translations

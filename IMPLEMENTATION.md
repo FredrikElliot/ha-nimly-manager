@@ -71,13 +71,15 @@ A complete, production-ready Home Assistant Custom Integration (HACS) for managi
 - File: `panel.py`
 
 ✅ **Web Interface**
+- Custom web component (nimlykoder-panel)
+- LitElement-based implementation
 - Table view of all codes
 - Add Code modal dialog
 - Edit Expiry modal
 - Remove confirmation dialog
 - Responsive design
 - Status badges (active/expired)
-- File: `frontend/dist/index.html`
+- File: `frontend/dist/nimlykoder-panel.js`
 
 ### 3. Localization
 
@@ -156,7 +158,7 @@ ha-nimly-manager/
 │       │   └── mqtt_z2m.py       # MQTT/Zigbee2MQTT adapter
 │       ├── frontend/
 │       │   └── dist/
-│       │       └── index.html     # Web UI
+│       │       └── nimlykoder-panel.js     # Web component
 │       ├── translations/
 │       │   ├── en.json           # English translations
 │       │   └── sv.json           # Swedish translations
@@ -370,6 +372,6 @@ For issues, questions, or contributions:
 
 **Implementation Date**: February 1, 2026  
 **Implementation Time**: ~3 hours  
-**Lines of Code**: ~2,000+ lines (Python + HTML/JS)  
+**Lines of Code**: ~2,000+ lines (Python + JavaScript)  
 **Files Created**: 21 files  
 **Status**: ✅ Complete and Production Ready

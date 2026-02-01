@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from homeassistant.components import frontend
+from homeassistant.components import frontend, panel_custom
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PANEL_NAME, PANEL_TITLE, PANEL_ICON
@@ -15,24 +15,29 @@ _LOGGER = logging.getLogger(__name__)
 async def async_register_panel(hass: HomeAssistant) -> None:
     """Register the Nimlykoder panel."""
     try:
-        # Register URL for serving the panel
+        # Register URL for serving the panel frontend files
         frontend_path = Path(__file__).parent / "frontend" / "dist"
         
-        # Register the custom panel with iframe
-        hass.http.register_static_path(
-            f"/api/{DOMAIN}",
-            str(frontend_path),
-            cache_headers=False,
+        await hass.http.async_register_static_paths(
+            [
+                {
+                    "url_path": f"/{DOMAIN}_panel",
+                    "path": str(frontend_path),
+                }
+            ]
         )
 
-        # Register panel in sidebar
-        hass.components.frontend.async_register_built_in_panel(
-            component_name="iframe",
+        # Register the custom panel
+        await panel_custom.async_register_panel(
+            hass,
+            frontend_url_path=PANEL_NAME,
+            webcomponent_name=f"{DOMAIN}-panel",
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
-            frontend_url_path=PANEL_NAME,
-            config={"url": f"/api/{DOMAIN}/index.html"},
+            module_url=f"/{DOMAIN}_panel/nimlykoder-panel.js",
+            embed_iframe=False,
             require_admin=False,
+            config={},
         )
 
         _LOGGER.info("Registered Nimlykoder panel")

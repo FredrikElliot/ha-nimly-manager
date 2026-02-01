@@ -1,0 +1,90 @@
+add_code:
+  name: Add Code
+  description: Add a new PIN code to the lock
+  fields:
+    name:
+      name: Name
+      description: Friendly name for this code
+      required: true
+      example: "Guest User"
+      selector:
+        text:
+    pin_code:
+      name: PIN Code
+      description: 4-digit PIN code
+      required: true
+      example: "1234"
+      selector:
+        text:
+    type:
+      name: Type
+      description: Code type (permanent or guest)
+      required: true
+      default: guest
+      example: guest
+      selector:
+        select:
+          options:
+            - permanent
+            - guest
+    expiry:
+      name: Expiry Date
+      description: Expiry date (ISO format YYYY-MM-DD, required for guest codes)
+      example: "2026-12-31"
+      selector:
+        date:
+    slot:
+      name: Slot Number
+      description: Preferred slot number (optional, auto-selected if not provided)
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+    force:
+      name: Force Overwrite
+      description: Force overwrite if slot is occupied
+      default: false
+      selector:
+        boolean:
+
+remove_code:
+  name: Remove Code
+  description: Remove a PIN code from the lock
+  fields:
+    slot:
+      name: Slot Number
+      description: Slot number to remove
+      required: true
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+
+update_expiry:
+  name: Update Expiry
+  description: Update the expiry date of a code
+  fields:
+    slot:
+      name: Slot Number
+      description: Slot number to update
+      required: true
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+    expiry:
+      name: Expiry Date
+      description: New expiry date (ISO format YYYY-MM-DD, or leave empty to remove)
+      example: "2027-01-31"
+      selector:
+        date:
+
+list_codes:
+  name: List Codes
+  description: List all PIN codes

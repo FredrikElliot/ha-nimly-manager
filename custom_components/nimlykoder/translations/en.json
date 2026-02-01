@@ -1,0 +1,150 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Nimlykoder",
+        "description": "Set up your Nimly lock code manager",
+        "data": {
+          "name": "Friendly Name",
+          "mqtt_topic": "MQTT Base Topic",
+          "slot_min": "Minimum Slot Number",
+          "slot_max": "Maximum Slot Number",
+          "reserved_slots": "Reserved Slots (comma separated)",
+          "auto_expire": "Enable Automatic Expiry Cleanup",
+          "cleanup_time": "Daily Cleanup Time (HH:MM:SS)",
+          "overwrite_protection": "Enable Overwrite Protection"
+        }
+      }
+    },
+    "error": {
+      "invalid_slot_range": "Minimum slot must be less than maximum slot"
+    },
+    "abort": {
+      "already_configured": "Nimlykoder is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Nimlykoder Options",
+        "description": "Update your Nimly lock code manager settings",
+        "data": {
+          "mqtt_topic": "MQTT Base Topic",
+          "slot_min": "Minimum Slot Number",
+          "slot_max": "Maximum Slot Number",
+          "reserved_slots": "Reserved Slots (comma separated)",
+          "auto_expire": "Enable Automatic Expiry Cleanup",
+          "cleanup_time": "Daily Cleanup Time (HH:MM:SS)",
+          "overwrite_protection": "Enable Overwrite Protection"
+        }
+      }
+    },
+    "error": {
+      "invalid_slot_range": "Minimum slot must be less than maximum slot"
+    }
+  },
+  "services": {
+    "add_code": {
+      "name": "Add Code",
+      "description": "Add a new PIN code to the lock",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Friendly name for this code"
+        },
+        "pin_code": {
+          "name": "PIN Code",
+          "description": "4-digit PIN code"
+        },
+        "type": {
+          "name": "Type",
+          "description": "Code type: permanent or guest"
+        },
+        "expiry": {
+          "name": "Expiry Date",
+          "description": "Expiry date (ISO format: YYYY-MM-DD, required for guest codes)"
+        },
+        "slot": {
+          "name": "Slot Number",
+          "description": "Preferred slot number (optional, auto-selected if not provided)"
+        },
+        "force": {
+          "name": "Force Overwrite",
+          "description": "Force overwrite if slot is occupied"
+        }
+      }
+    },
+    "remove_code": {
+      "name": "Remove Code",
+      "description": "Remove a PIN code from the lock",
+      "fields": {
+        "slot": {
+          "name": "Slot Number",
+          "description": "Slot number to remove"
+        }
+      }
+    },
+    "update_expiry": {
+      "name": "Update Expiry",
+      "description": "Update the expiry date of a code",
+      "fields": {
+        "slot": {
+          "name": "Slot Number",
+          "description": "Slot number to update"
+        },
+        "expiry": {
+          "name": "Expiry Date",
+          "description": "New expiry date (ISO format: YYYY-MM-DD, or null to remove)"
+        }
+      }
+    },
+    "list_codes": {
+      "name": "List Codes",
+      "description": "List all PIN codes"
+    }
+  },
+  "panel": {
+    "title": "Nimlykoder",
+    "add_code": "Add Code",
+    "table": {
+      "slot": "Slot",
+      "name": "Name",
+      "type": "Type",
+      "expiry": "Expiry",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "reserved": "Reserved"
+    },
+    "type": {
+      "permanent": "Permanent",
+      "guest": "Guest"
+    },
+    "dialog": {
+      "add_title": "Add New Code",
+      "edit_title": "Edit Expiry",
+      "remove_title": "Remove Code",
+      "confirm_remove": "Are you sure you want to remove this code?",
+      "name": "Name",
+      "pin_code": "PIN Code",
+      "type": "Type",
+      "expiry": "Expiry Date",
+      "slot": "Slot",
+      "suggested_slot": "Suggested Slot",
+      "advanced": "Advanced",
+      "preferred_slot": "Preferred Slot",
+      "cancel": "Cancel",
+      "save": "Save",
+      "remove": "Remove"
+    },
+    "messages": {
+      "code_added": "Code added successfully",
+      "code_removed": "Code removed successfully",
+      "code_updated": "Code updated successfully",
+      "error": "An error occurred: {error}"
+    }
+  }
+}

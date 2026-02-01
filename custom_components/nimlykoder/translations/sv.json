@@ -1,0 +1,150 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Konfigurera Nimlykoder",
+        "description": "Ställ in din Nimly-lås kodhanterare",
+        "data": {
+          "name": "Vänligt Namn",
+          "mqtt_topic": "MQTT Bas-ämne",
+          "slot_min": "Minsta Platsnummer",
+          "slot_max": "Högsta Platsnummer",
+          "reserved_slots": "Reserverade Platser (kommaseparerade)",
+          "auto_expire": "Aktivera Automatisk Utgångsrensning",
+          "cleanup_time": "Daglig Rensning Tid (HH:MM:SS)",
+          "overwrite_protection": "Aktivera Överskrivningsskydd"
+        }
+      }
+    },
+    "error": {
+      "invalid_slot_range": "Minsta plats måste vara mindre än högsta plats"
+    },
+    "abort": {
+      "already_configured": "Nimlykoder är redan konfigurerad"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Konfigurera Nimlykoder Alternativ",
+        "description": "Uppdatera dina Nimly-lås kodhanterare inställningar",
+        "data": {
+          "mqtt_topic": "MQTT Bas-ämne",
+          "slot_min": "Minsta Platsnummer",
+          "slot_max": "Högsta Platsnummer",
+          "reserved_slots": "Reserverade Platser (kommaseparerade)",
+          "auto_expire": "Aktivera Automatisk Utgångsrensning",
+          "cleanup_time": "Daglig Rensning Tid (HH:MM:SS)",
+          "overwrite_protection": "Aktivera Överskrivningsskydd"
+        }
+      }
+    },
+    "error": {
+      "invalid_slot_range": "Minsta plats måste vara mindre än högsta plats"
+    }
+  },
+  "services": {
+    "add_code": {
+      "name": "Lägg till Kod",
+      "description": "Lägg till en ny PIN-kod till låset",
+      "fields": {
+        "name": {
+          "name": "Namn",
+          "description": "Vänligt namn för denna kod"
+        },
+        "pin_code": {
+          "name": "PIN-kod",
+          "description": "4-siffrig PIN-kod"
+        },
+        "type": {
+          "name": "Typ",
+          "description": "Kodtyp: permanent eller gäst"
+        },
+        "expiry": {
+          "name": "Utgångsdatum",
+          "description": "Utgångsdatum (ISO-format: ÅÅÅÅ-MM-DD, krävs för gästkoder)"
+        },
+        "slot": {
+          "name": "Platsnummer",
+          "description": "Föredraget platsnummer (valfritt, väljs automatiskt om det inte anges)"
+        },
+        "force": {
+          "name": "Tvinga Överskrivning",
+          "description": "Tvinga överskrivning om platsen är upptagen"
+        }
+      }
+    },
+    "remove_code": {
+      "name": "Ta bort Kod",
+      "description": "Ta bort en PIN-kod från låset",
+      "fields": {
+        "slot": {
+          "name": "Platsnummer",
+          "description": "Platsnummer att ta bort"
+        }
+      }
+    },
+    "update_expiry": {
+      "name": "Uppdatera Utgång",
+      "description": "Uppdatera utgångsdatumet för en kod",
+      "fields": {
+        "slot": {
+          "name": "Platsnummer",
+          "description": "Platsnummer att uppdatera"
+        },
+        "expiry": {
+          "name": "Utgångsdatum",
+          "description": "Nytt utgångsdatum (ISO-format: ÅÅÅÅ-MM-DD, eller null för att ta bort)"
+        }
+      }
+    },
+    "list_codes": {
+      "name": "Lista Koder",
+      "description": "Lista alla PIN-koder"
+    }
+  },
+  "panel": {
+    "title": "Nimlykoder",
+    "add_code": "Lägg till Kod",
+    "table": {
+      "slot": "Plats",
+      "name": "Namn",
+      "type": "Typ",
+      "expiry": "Utgång",
+      "status": "Status",
+      "actions": "Åtgärder"
+    },
+    "status": {
+      "active": "Aktiv",
+      "expired": "Utgången",
+      "reserved": "Reserverad"
+    },
+    "type": {
+      "permanent": "Permanent",
+      "guest": "Gäst"
+    },
+    "dialog": {
+      "add_title": "Lägg till Ny Kod",
+      "edit_title": "Redigera Utgång",
+      "remove_title": "Ta bort Kod",
+      "confirm_remove": "Är du säker på att du vill ta bort denna kod?",
+      "name": "Namn",
+      "pin_code": "PIN-kod",
+      "type": "Typ",
+      "expiry": "Utgångsdatum",
+      "slot": "Plats",
+      "suggested_slot": "Föreslagen Plats",
+      "advanced": "Avancerat",
+      "preferred_slot": "Föredragen Plats",
+      "cancel": "Avbryt",
+      "save": "Spara",
+      "remove": "Ta bort"
+    },
+    "messages": {
+      "code_added": "Kod tillagd framgångsrikt",
+      "code_removed": "Kod borttagen framgångsrikt",
+      "code_updated": "Kod uppdaterad framgångsrikt",
+      "error": "Ett fel uppstod: {error}"
+    }
+  }
+}

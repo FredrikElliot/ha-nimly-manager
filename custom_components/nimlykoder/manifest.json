@@ -1,0 +1,12 @@
+{
+  "domain": "nimlykoder",
+  "name": "Nimlykoder",
+  "codeowners": ["@FredrikElliot"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/FredrikElliot/ha-nimly-manager",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/FredrikElliot/ha-nimly-manager/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

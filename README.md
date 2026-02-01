@@ -15,35 +15,30 @@ A complete HACS integration for managing PIN codes on Nimly smart locks via Zigb
 
 ## Installation
 
-### HACS (Recommended)
+### Quick Install via HACS (Recommended)
 
-1. Open HACS in Home Assistant
-2. Go to "Integrations"
-3. Click the three dots menu and select "Custom repositories"
-4. Add repository URL: `https://github.com/FredrikElliot/ha-nimly-manager`
-5. Category: Integration
-6. Click "Install"
-7. Restart Home Assistant
+1. Open HACS → Integrations
+2. Click three dots (⋮) → Custom repositories
+3. Add: `https://github.com/FredrikElliot/ha-nimly-manager` (Integration)
+4. Search "Nimlykoder" and install
+5. Restart Home Assistant
+6. Add integration via Settings → Devices & Services
+
+📖 **[Detailed Installation Guide](examples/INSTALLATION.md)** - Complete step-by-step instructions
 
 ### Manual Installation
 
-1. Copy the `custom_components/nimlykoder` directory to your Home Assistant's `custom_components` directory
-2. Restart Home Assistant
+Copy `custom_components/nimlykoder/` to your Home Assistant's `custom_components` directory and restart.
 
-## Configuration
+## Quick Start
 
-1. Go to **Settings** → **Devices & Services**
-2. Click **Add Integration**
-3. Search for **Nimlykoder**
-4. Configure the integration:
-   - **Friendly Name**: Name for your integration (default: Nimlykoder)
-   - **MQTT Base Topic**: MQTT topic for your Nimly lock (default: `zigbee2mqtt/nimly_lock`)
-   - **Minimum Slot**: Lowest slot number (default: 0)
-   - **Maximum Slot**: Highest slot number (default: 99)
-   - **Reserved Slots**: Comma-separated list of reserved slots (default: 1,2,3)
-   - **Auto Expire**: Enable automatic cleanup of expired guest codes (default: enabled)
-   - **Cleanup Time**: Daily time for cleanup in HH:MM:SS format (default: 03:00:00)
-   - **Overwrite Protection**: Prevent accidental overwrite of occupied slots (default: enabled)
+1. **Configure Integration**: Settings → Devices & Services → Add Integration → Nimlykoder
+2. **Set MQTT Topic**: Enter your Zigbee2MQTT device topic (e.g., `zigbee2mqtt/nimly_lock`)
+3. **Configure Slots**: Set slot range (0-99) and reserved slots (1-3)
+4. **Access Panel**: Click "Nimlykoder" in sidebar
+5. **Add First Code**: Click "Add Code" button
+
+📘 **[Example Automations](examples/automations.md)** - Ready-to-use automation examples
 
 ## Usage
 
@@ -150,12 +145,57 @@ automation:
 
 ### Components
 
-- **Storage**: Persistent storage using Home Assistant's built-in storage system
-- **MQTT Adapter**: Publishes add/remove commands to Zigbee2MQTT
-- **Services**: Home Assistant service calls for automation
-- **WebSocket API**: Real-time communication with the frontend
-- **Scheduler**: Daily cleanup of expired guest codes
-- **Panel**: Custom sidebar panel for UI
+- **Storage (`storage.py`)**: Persistent storage using Home Assistant's built-in storage system
+  - Schema version 1 with migration support
+  - Stores slot number, name, type, expiry, timestamps
+  - Async operations for all storage access
+  
+- **MQTT Adapter (`adapters/mqtt_z2m.py`)**: Publishes add/remove commands to Zigbee2MQTT
+  - Handles communication with Nimly locks
+  - Proper error handling and logging
+  - Supports both add and remove operations
+  
+- **Services (`services.py`)**: Home Assistant service calls for automation
+  - `add_code`, `remove_code`, `update_expiry`, `list_codes`
+  - Policy enforcement (guest expiry, reserved slots, overwrite protection)
+  - Service response support for `list_codes`
+  
+- **WebSocket API (`websocket.py`)**: Real-time communication with the frontend
+  - Commands: list, add, remove, update_expiry, suggest_slots
+  - Bidirectional communication for live updates
+  - Proper error handling with error codes
+  
+- **Scheduler (`__init__.py`)**: Daily cleanup of expired guest codes
+  - Configurable cleanup time
+  - Async job execution
+  - Comprehensive logging
+  
+- **Panel (`panel.py`)**: Custom sidebar panel for UI
+  - Registers iframe-based panel
+  - Serves static frontend files
+  - Integrates with HA sidebar
+
+- **Frontend (`frontend/dist/`)**: Web-based UI
+  - Table view of all codes
+  - Modal dialogs for add/edit/remove
+  - Real-time updates via WebSocket
+  - Responsive design
+
+### Data Flow
+
+```
+User Action (UI/Service) 
+    ↓
+WebSocket/Service Handler
+    ↓
+Policy Enforcement
+    ↓
+MQTT Adapter → Nimly Lock (via Zigbee2MQTT)
+    ↓
+Storage Update
+    ↓
+UI Update (WebSocket response)
+```
 
 ### Slot Management
 
@@ -177,6 +217,45 @@ To change language:
 1. Go to **Profile** (click your username)
 2. Change **Language** setting
 3. Refresh the page
+
+## Security Considerations
+
+### PIN Code Security
+
+- **PIN codes are transmitted via MQTT**: Ensure your MQTT broker is secured with authentication and TLS
+- **Storage encryption**: PIN codes are stored in Home Assistant's storage, protected by file system permissions
+- **No PIN code logging**: PIN codes are never logged in Home Assistant logs
+- **MQTT QoS 1**: Messages use Quality of Service level 1 for reliable delivery
+
+### Best Practices
+
+1. **Secure MQTT Broker**: 
+   - Use authentication (username/password)
+   - Enable TLS/SSL encryption
+   - Restrict network access to MQTT broker
+
+2. **Reserved Slots**:
+   - Keep critical codes (family, emergency) in reserved slots
+   - Reserved slots can't be auto-assigned or accidentally overwritten
+
+3. **Overwrite Protection**:
+   - Keep enabled to prevent accidental code replacement
+   - Only disable when intentionally replacing codes
+
+4. **Guest Code Expiry**:
+   - Always set expiry dates for guest codes
+   - Enable auto-cleanup to remove expired codes automatically
+   - Review guest codes regularly
+
+5. **Access Control**:
+   - Only give Home Assistant access to trusted users
+   - Use strong Home Assistant passwords
+   - Enable two-factor authentication if available
+
+6. **Backup**:
+   - Include `.storage/nimlykoder_codes` in your backups
+   - Test restore procedures
+   - Keep encrypted backups off-site
 
 ## Troubleshooting
 

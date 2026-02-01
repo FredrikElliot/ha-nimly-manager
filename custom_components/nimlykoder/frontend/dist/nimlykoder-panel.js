@@ -20,6 +20,9 @@ class NimlykoderPanel extends LitElement {
             showRemoveDialog: { type: Boolean },
             editingCode: { type: Object },
             removingCode: { type: Object },
+            config: { type: Object },
+            showExpiredInfo: { type: Boolean },
+            suggestedSlot: { type: Number },
         };
     }
 
@@ -34,6 +37,9 @@ class NimlykoderPanel extends LitElement {
         this.showRemoveDialog = false;
         this.editingCode = null;
         this.removingCode = null;
+        this.config = { auto_expire: true, cleanup_time: "03:00:00" };
+        this.showExpiredInfo = false;
+        this.suggestedSlot = null;
     }
 
     static get styles() {
@@ -74,7 +80,7 @@ class NimlykoderPanel extends LitElement {
                 width: 48px;
                 height: 48px;
                 border-radius: 50%;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: var(--primary-color);
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -161,13 +167,14 @@ class NimlykoderPanel extends LitElement {
             }
 
             .btn-primary {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+                background: var(--primary-color);
+                color: var(--text-primary-color, white);
+                box-shadow: 0 2px 8px rgba(var(--rgb-primary-color, 3, 169, 244), 0.4);
             }
 
             .btn-primary:hover {
-                box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
+                filter: brightness(1.1);
+                box-shadow: 0 4px 16px rgba(var(--rgb-primary-color, 3, 169, 244), 0.5);
                 transform: translateY(-1px);
             }
 
@@ -242,6 +249,93 @@ class NimlykoderPanel extends LitElement {
                 margin-top: 4px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
+            }
+
+            .stat-header {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .info-icon {
+                width: 20px;
+                height: 20px;
+                color: var(--text-secondary);
+                cursor: pointer;
+                transition: color 0.2s;
+            }
+
+            .info-icon:hover {
+                color: var(--primary-color);
+            }
+
+            .stat-card.expired {
+                position: relative;
+            }
+
+            /* Info Tooltip */
+            .info-tooltip {
+                position: absolute;
+                bottom: calc(100% + 12px);
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--card-bg);
+                border: 1px solid var(--divider);
+                border-radius: 12px;
+                padding: 16px;
+                width: 280px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+                z-index: 100;
+                text-align: left;
+            }
+
+            .info-tooltip::after {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border: 8px solid transparent;
+                border-top-color: var(--card-bg);
+            }
+
+            .info-tooltip::before {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border: 9px solid transparent;
+                border-top-color: var(--divider);
+            }
+
+            .info-tooltip h4 {
+                margin: 0 0 8px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-primary);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .info-tooltip h4 svg {
+                width: 18px;
+                height: 18px;
+                color: #f44336;
+            }
+
+            .info-tooltip p {
+                margin: 0;
+                font-size: 13px;
+                color: var(--text-secondary);
+                line-height: 1.5;
+            }
+
+            .info-tooltip .highlight {
+                color: var(--primary-color);
+                font-weight: 500;
             }
 
             .stat-card.permanent .stat-value { color: #4caf50; }
@@ -371,7 +465,7 @@ class NimlykoderPanel extends LitElement {
                 width: 80px;
                 height: 80px;
                 margin: 0 auto 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: var(--primary-color);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
@@ -575,6 +669,7 @@ class NimlykoderPanel extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this.loadCodes();
+        this.loadConfig();
     }
 
     async loadCodes() {
@@ -590,6 +685,28 @@ class NimlykoderPanel extends LitElement {
             this.error = err.message;
             this.loading = false;
         }
+    }
+
+    async loadConfig() {
+        try {
+            const result = await this.hass.callWS({
+                type: "nimlykoder/config",
+            });
+            this.config = result;
+        } catch (err) {
+            console.error("Failed to load config:", err);
+        }
+    }
+
+    get cleanupTimeFormatted() {
+        const time = this.config?.cleanup_time || "03:00:00";
+        const [hours, minutes] = time.split(":");
+        const hour = parseInt(hours);
+        const min = minutes || "00";
+        if (hour === 0) return `12:${min} AM`;
+        if (hour < 12) return `${hour}:${min} AM`;
+        if (hour === 12) return `12:${min} PM`;
+        return `${hour - 12}:${min} PM`;
     }
 
     get filteredCodes() {
@@ -690,6 +807,8 @@ class NimlykoderPanel extends LitElement {
 
     _renderStats() {
         const { total, permanent, guest, expired } = this.stats;
+        const autoExpireEnabled = this.config?.auto_expire !== false;
+        
         return html`
             <div class="stats">
                 <div class="stat-card">
@@ -705,8 +824,37 @@ class NimlykoderPanel extends LitElement {
                     <div class="stat-label">Guest</div>
                 </div>
                 <div class="stat-card expired">
-                    <div class="stat-value">${expired}</div>
+                    <div class="stat-header">
+                        <div class="stat-value">${expired}</div>
+                        <svg 
+                            class="info-icon" 
+                            viewBox="0 0 24 24" 
+                            fill="currentColor"
+                            @click=${(e) => { e.stopPropagation(); this.showExpiredInfo = !this.showExpiredInfo; }}
+                            @mouseenter=${() => this.showExpiredInfo = true}
+                            @mouseleave=${() => this.showExpiredInfo = false}
+                        >
+                            <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                        </svg>
+                    </div>
                     <div class="stat-label">Expired</div>
+                    ${this.showExpiredInfo ? html`
+                        <div class="info-tooltip">
+                            <h4>
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/>
+                                </svg>
+                                Expired Codes
+                            </h4>
+                            <p>
+                                Expired codes have passed their set expiry date and are no longer valid for entry.
+                                ${autoExpireEnabled 
+                                    ? html`<br><br>These codes will be <strong>automatically removed</strong> from the lock at <span class="highlight">${this.cleanupTimeFormatted}</span> daily.`
+                                    : html`<br><br>Auto-cleanup is disabled. You need to manually remove expired codes.`
+                                }
+                            </p>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -727,11 +875,11 @@ class NimlykoderPanel extends LitElement {
                         @input=${(e) => (this.searchQuery = e.target.value)}
                     />
                 </div>
-                <button class="btn btn-primary" @click=${() => (this.showAddDialog = true)}>
+                <button class="btn btn-primary" @click=${() => this._openAddDialog()}>
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                     </svg>
-                    Add Person
+                    Add Code
                 </button>
             </div>
         `;
@@ -828,7 +976,7 @@ class NimlykoderPanel extends LitElement {
                 </div>
                 <h2>No PIN codes yet</h2>
                 <p>Add your first person to get started with Nimlykoder</p>
-                <button class="btn btn-primary" @click=${() => (this.showAddDialog = true)}>
+                <button class="btn btn-primary" @click=${() => this._openAddDialog()}>
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                     </svg>
@@ -891,8 +1039,8 @@ class NimlykoderPanel extends LitElement {
                             </div>
                             <div class="form-group">
                                 <label for="add-slot">Slot</label>
-                                <input type="number" id="add-slot" min="0" max="99" placeholder="Auto" />
-                                <small>Leave empty for auto-assign</small>
+                                <input type="number" id="add-slot" min="0" max="99" .value=${this.suggestedSlot !== null ? String(this.suggestedSlot) : ""} />
+                                <small>Next available: ${this.suggestedSlot !== null ? this.suggestedSlot : "..."}</small>
                             </div>
                         </div>
                         <div class="form-group" id="expiry-group" style="display: none;">
@@ -973,8 +1121,24 @@ class NimlykoderPanel extends LitElement {
         }
     }
 
+    async _openAddDialog() {
+        // Fetch the next available slot
+        try {
+            const result = await this.hass.callWS({
+                type: "nimlykoder/suggest_slots",
+                count: 1,
+            });
+            this.suggestedSlot = result.slots && result.slots.length > 0 ? result.slots[0] : null;
+        } catch (err) {
+            console.error("Failed to fetch suggested slot:", err);
+            this.suggestedSlot = null;
+        }
+        this.showAddDialog = true;
+    }
+
     _closeAddDialog() {
         this.showAddDialog = false;
+        this.suggestedSlot = null;
     }
 
     _closeEditDialog() {

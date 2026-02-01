@@ -18,8 +18,11 @@ from .const import (
     WS_TYPE_REMOVE,
     WS_TYPE_UPDATE_EXPIRY,
     WS_TYPE_SUGGEST_SLOTS,
+    WS_TYPE_CONFIG,
     TYPE_PERMANENT,
     TYPE_GUEST,
+    CONF_AUTO_EXPIRE,
+    CONF_CLEANUP_TIME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,6 +36,7 @@ def async_register_websocket_handlers(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, handle_remove)
     websocket_api.async_register_command(hass, handle_update_expiry)
     websocket_api.async_register_command(hass, handle_suggest_slots)
+    websocket_api.async_register_command(hass, handle_config)
 
 
 @websocket_api.websocket_command(
@@ -299,3 +303,32 @@ async def handle_suggest_slots(
     except Exception as err:
         _LOGGER.error("Error suggesting slots: %s", err)
         connection.send_error(msg["id"], "suggest_failed", str(err))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_CONFIG,
+    }
+)
+@websocket_api.async_response
+async def handle_config(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle config command - returns current configuration."""
+    try:
+        data = hass.data[DOMAIN]
+        config = data["config"]
+
+        connection.send_result(
+            msg["id"],
+            {
+                "auto_expire": config.get(CONF_AUTO_EXPIRE, True),
+                "cleanup_time": config.get(CONF_CLEANUP_TIME, "03:00:00"),
+            },
+        )
+
+    except Exception as err:
+        _LOGGER.error("Error getting config: %s", err)
+        connection.send_error(msg["id"], "config_failed", str(err))

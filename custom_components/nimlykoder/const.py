@@ -40,6 +40,7 @@ WS_TYPE_ADD = "nimlykoder/add"
 WS_TYPE_REMOVE = "nimlykoder/remove"
 WS_TYPE_UPDATE_EXPIRY = "nimlykoder/update_expiry"
 WS_TYPE_SUGGEST_SLOTS = "nimlykoder/suggest_slots"
+WS_TYPE_CONFIG = "nimlykoder/config"
 
 # Panel
 PANEL_NAME = "nimlykoder"

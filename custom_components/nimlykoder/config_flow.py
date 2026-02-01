@@ -112,15 +112,11 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Create the options flow."""
-        return NimlykoderOptionsFlow(config_entry)
+        return NimlykoderOptionsFlow()
 
 
 class NimlykoderOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Nimlykoder."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -140,27 +136,47 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                 )
                 return self.async_create_entry(title="", data=options)
 
-        # Get current options
-        options = self.config_entry.options
+        # Get current options with safe defaults
+        options = self.config_entry.options or {}
 
         # Format reserved_slots for display
-        current_reserved = options.get(CONF_RESERVED_SLOTS, DEFAULT_RESERVED_SLOTS)
+        current_reserved = options.get(CONF_RESERVED_SLOTS)
+        if current_reserved is None:
+            current_reserved = DEFAULT_RESERVED_SLOTS
         if isinstance(current_reserved, list):
             current_reserved = _format_reserved_slots(current_reserved)
+        elif not isinstance(current_reserved, str):
+            current_reserved = _format_reserved_slots(DEFAULT_RESERVED_SLOTS)
+
+        # Get other options with safe defaults
+        mqtt_topic = options.get(CONF_MQTT_TOPIC) or DEFAULT_MQTT_TOPIC
+        slot_min = options.get(CONF_SLOT_MIN)
+        if slot_min is None:
+            slot_min = DEFAULT_SLOT_MIN
+        slot_max = options.get(CONF_SLOT_MAX)
+        if slot_max is None:
+            slot_max = DEFAULT_SLOT_MAX
+        auto_expire = options.get(CONF_AUTO_EXPIRE)
+        if auto_expire is None:
+            auto_expire = DEFAULT_AUTO_EXPIRE
+        cleanup_time = options.get(CONF_CLEANUP_TIME) or DEFAULT_CLEANUP_TIME
+        overwrite_protection = options.get(CONF_OVERWRITE_PROTECTION)
+        if overwrite_protection is None:
+            overwrite_protection = DEFAULT_OVERWRITE_PROTECTION
 
         data_schema = vol.Schema(
             {
                 vol.Required(
                     CONF_MQTT_TOPIC,
-                    default=options.get(CONF_MQTT_TOPIC, DEFAULT_MQTT_TOPIC),
+                    default=mqtt_topic,
                 ): str,
                 vol.Required(
                     CONF_SLOT_MIN,
-                    default=options.get(CONF_SLOT_MIN, DEFAULT_SLOT_MIN),
+                    default=slot_min,
                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=99)),
                 vol.Required(
                     CONF_SLOT_MAX,
-                    default=options.get(CONF_SLOT_MAX, DEFAULT_SLOT_MAX),
+                    default=slot_max,
                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=99)),
                 vol.Required(
                     CONF_RESERVED_SLOTS,
@@ -168,17 +184,15 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                 ): str,
                 vol.Required(
                     CONF_AUTO_EXPIRE,
-                    default=options.get(CONF_AUTO_EXPIRE, DEFAULT_AUTO_EXPIRE),
+                    default=auto_expire,
                 ): bool,
                 vol.Required(
                     CONF_CLEANUP_TIME,
-                    default=options.get(CONF_CLEANUP_TIME, DEFAULT_CLEANUP_TIME),
+                    default=cleanup_time,
                 ): str,
                 vol.Required(
                     CONF_OVERWRITE_PROTECTION,
-                    default=options.get(
-                        CONF_OVERWRITE_PROTECTION, DEFAULT_OVERWRITE_PROTECTION
-                    ),
+                    default=overwrite_protection,
                 ): bool,
             }
         )

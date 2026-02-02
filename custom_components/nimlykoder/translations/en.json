@@ -105,7 +105,15 @@
   },
   "panel": {
     "title": "Nimlykoder",
+    "subtitle": "Manage PIN codes for your Nimly lock",
     "add_code": "Add Code",
+    "search_placeholder": "Search by name, slot, or type...",
+    "stats": {
+      "total": "Total Codes",
+      "permanent": "Permanent",
+      "guest": "Guest",
+      "expired": "Expired"
+    },
     "table": {
       "slot": "Slot",
       "name": "Name",
@@ -124,21 +132,48 @@
       "guest": "Guest"
     },
     "dialog": {
-      "add_title": "Add New Code",
-      "edit_title": "Edit Expiry",
-      "remove_title": "Remove Code",
-      "confirm_remove": "Are you sure you want to remove this code?",
+      "add_title": "Add New Person",
+      "edit_title": "Edit",
+      "remove_title": "Remove Person",
+      "confirm_remove": "Are you sure you want to remove",
+      "remove_description": "This will delete the PIN code from slot {slot} and remove it from the lock.",
       "name": "Name",
+      "name_placeholder": "e.g., John Doe",
       "pin_code": "PIN Code",
+      "pin_placeholder": "6 digits",
+      "pin_hint": "Enter a 6 digit PIN code",
       "type": "Type",
       "expiry": "Expiry Date",
+      "expiry_hint": "Leave empty for no expiry (permanent access)",
       "slot": "Slot",
+      "next_available": "Next available",
       "suggested_slot": "Suggested Slot",
       "advanced": "Advanced",
       "preferred_slot": "Preferred Slot",
       "cancel": "Cancel",
-      "save": "Save",
+      "save": "Save Changes",
+      "add": "Add Person",
       "remove": "Remove"
+    },
+    "empty": {
+      "title": "No PIN codes yet",
+      "description": "Add your first person to get started with Nimlykoder",
+      "add_first": "Add First Person"
+    },
+    "no_results": {
+      "title": "No results found",
+      "description": "Try a different search term"
+    },
+    "loading": "Loading codes...",
+    "retry": "Retry",
+    "expires": "Expires",
+    "expired_on": "Expired",
+    "slot_label": "Slot",
+    "expired_info": {
+      "title": "Expired Codes",
+      "description": "Expired codes have passed their set expiry date and are no longer valid for entry.",
+      "auto_cleanup": "Auto-cleanup is enabled. Expired codes will be automatically removed at {time}.",
+      "manual_cleanup": "Auto-cleanup is disabled. Remove expired codes manually."
     },
     "messages": {
       "code_added": "Code added successfully",

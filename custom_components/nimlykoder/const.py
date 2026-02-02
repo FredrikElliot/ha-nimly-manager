@@ -33,6 +33,7 @@ SERVICE_ADD_CODE = "add_code"
 SERVICE_REMOVE_CODE = "remove_code"
 SERVICE_UPDATE_EXPIRY = "update_expiry"
 SERVICE_LIST_CODES = "list_codes"
+SERVICE_CLEANUP_EXPIRED = "cleanup_expired"
 
 # WebSocket commands
 WS_TYPE_LIST = "nimlykoder/list"
@@ -41,6 +42,7 @@ WS_TYPE_REMOVE = "nimlykoder/remove"
 WS_TYPE_UPDATE_EXPIRY = "nimlykoder/update_expiry"
 WS_TYPE_SUGGEST_SLOTS = "nimlykoder/suggest_slots"
 WS_TYPE_CONFIG = "nimlykoder/config"
+WS_TYPE_TRANSLATIONS = "nimlykoder/translations"
 
 # Panel
 PANEL_NAME = "nimlykoder"

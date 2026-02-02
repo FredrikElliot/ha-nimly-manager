@@ -105,7 +105,15 @@
   },
   "panel": {
     "title": "Nimlykoder",
-    "add_code": "Lägg till Kod",
+    "subtitle": "Hantera PIN-koder för ditt Nimly-lås",
+    "add_code": "Lägg till kod",
+    "search_placeholder": "Sök på namn, plats eller typ...",
+    "stats": {
+      "total": "Totalt antal",
+      "permanent": "Permanenta",
+      "guest": "Gäster",
+      "expired": "Utgångna"
+    },
     "table": {
       "slot": "Plats",
       "name": "Namn",
@@ -124,26 +132,53 @@
       "guest": "Gäst"
     },
     "dialog": {
-      "add_title": "Lägg till Ny Kod",
-      "edit_title": "Redigera Utgång",
-      "remove_title": "Ta bort Kod",
-      "confirm_remove": "Är du säker på att du vill ta bort denna kod?",
+      "add_title": "Lägg till ny person",
+      "edit_title": "Redigera",
+      "remove_title": "Ta bort person",
+      "confirm_remove": "Är du säker på att du vill ta bort",
+      "remove_description": "Detta tar bort PIN-koden från plats {slot} och raderar den från låset.",
       "name": "Namn",
+      "name_placeholder": "t.ex. Johan Andersson",
       "pin_code": "PIN-kod",
+      "pin_placeholder": "6 siffror",
+      "pin_hint": "Ange en 6-siffrig PIN-kod",
       "type": "Typ",
       "expiry": "Utgångsdatum",
+      "expiry_hint": "Lämna tomt för ingen utgång (permanent åtkomst)",
       "slot": "Plats",
-      "suggested_slot": "Föreslagen Plats",
+      "next_available": "Nästa lediga",
+      "suggested_slot": "Föreslagen plats",
       "advanced": "Avancerat",
-      "preferred_slot": "Föredragen Plats",
+      "preferred_slot": "Föredragen plats",
       "cancel": "Avbryt",
-      "save": "Spara",
+      "save": "Spara ändringar",
+      "add": "Lägg till person",
       "remove": "Ta bort"
     },
+    "empty": {
+      "title": "Inga PIN-koder ännu",
+      "description": "Lägg till din första person för att komma igång med Nimlykoder",
+      "add_first": "Lägg till första personen"
+    },
+    "no_results": {
+      "title": "Inga resultat hittades",
+      "description": "Prova ett annat sökord"
+    },
+    "loading": "Laddar koder...",
+    "retry": "Försök igen",
+    "expires": "Utgår",
+    "expired_on": "Utgick",
+    "slot_label": "Plats",
+    "expired_info": {
+      "title": "Utgångna koder",
+      "description": "Utgångna koder har passerat sitt utgångsdatum och är inte längre giltiga för inträde.",
+      "auto_cleanup": "Automatisk rensning är aktiverad. Utgångna koder tas automatiskt bort kl. {time}.",
+      "manual_cleanup": "Automatisk rensning är inaktiverad. Ta bort utgångna koder manuellt."
+    },
     "messages": {
-      "code_added": "Kod tillagd framgångsrikt",
-      "code_removed": "Kod borttagen framgångsrikt",
-      "code_updated": "Kod uppdaterad framgångsrikt",
+      "code_added": "Kod tillagd",
+      "code_removed": "Kod borttagen",
+      "code_updated": "Kod uppdaterad",
       "error": "Ett fel uppstod: {error}"
     }
   }

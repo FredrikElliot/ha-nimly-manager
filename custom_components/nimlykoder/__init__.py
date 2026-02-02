@@ -5,7 +5,7 @@ import logging
 from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.exceptions import ConfigEntryNotReady
 
@@ -69,6 +69,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "mqtt_adapter": mqtt_adapter,
         "config": config,
         "entry": entry,
+        "cleanup_unsub": None,
     }
 
     # Register services
@@ -82,7 +83,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up scheduler for expired code cleanup
     if config[CONF_AUTO_EXPIRE]:
-        await async_setup_cleanup_scheduler(hass, config[CONF_CLEANUP_TIME])
+        unsub = await async_setup_cleanup_scheduler(hass, config[CONF_CLEANUP_TIME])
+        hass.data[DOMAIN]["cleanup_unsub"] = unsub
 
     # Listen for options updates
     entry.async_on_unload(entry.add_update_listener(async_update_options))
@@ -93,6 +95,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    # Cancel cleanup scheduler
+    data = hass.data.get(DOMAIN)
+    if data and data.get("cleanup_unsub"):
+        data["cleanup_unsub"]()
+
     # Unregister services
     await async_unload_services(hass)
 
@@ -111,8 +118,8 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_setup_cleanup_scheduler(hass: HomeAssistant, cleanup_time: str) -> None:
-    """Set up daily cleanup scheduler."""
+async def async_setup_cleanup_scheduler(hass: HomeAssistant, cleanup_time: str):
+    """Set up daily cleanup scheduler. Returns unsub function."""
     try:
         # Parse cleanup time (format: HH:MM:SS)
         time_parts = cleanup_time.split(":")
@@ -120,48 +127,76 @@ async def async_setup_cleanup_scheduler(hass: HomeAssistant, cleanup_time: str) 
         minute = int(time_parts[1]) if len(time_parts) > 1 else 0
         second = int(time_parts[2]) if len(time_parts) > 2 else 0
 
-        async def cleanup_expired_codes(now):
+        @callback
+        def cleanup_expired_codes(now):
             """Clean up expired guest codes."""
-            try:
-                data = hass.data.get(DOMAIN)
-                if not data:
-                    return
-
-                storage = data["storage"]
-                mqtt_adapter = data["mqtt_adapter"]
-
-                today = date.today()
-                expired_slots = storage.expired_guest_slots(today)
-
-                if not expired_slots:
-                    _LOGGER.debug("No expired guest codes to clean up")
-                    return
-
-                _LOGGER.info("Cleaning up %d expired guest codes", len(expired_slots))
-
-                for slot in expired_slots:
-                    try:
-                        # Remove from MQTT
-                        await mqtt_adapter.remove_code(slot)
-                        # Remove from storage
-                        await storage.remove(slot)
-                        _LOGGER.info("Removed expired code from slot %s", slot)
-                    except Exception as err:
-                        _LOGGER.error(
-                            "Failed to remove expired code from slot %s: %s", slot, err
-                        )
-
-                _LOGGER.info("Cleanup completed: removed %d expired codes", len(expired_slots))
-
-            except Exception as err:
-                _LOGGER.error("Error during cleanup: %s", err)
+            hass.async_create_task(_async_cleanup_expired_codes(hass))
 
         # Schedule daily cleanup
-        async_track_time_change(
+        unsub = async_track_time_change(
             hass, cleanup_expired_codes, hour=hour, minute=minute, second=second
         )
 
-        _LOGGER.info("Scheduled daily cleanup at %s", cleanup_time)
+        _LOGGER.info(
+            "Scheduled daily expired code cleanup at %02d:%02d:%02d",
+            hour, minute, second
+        )
+        return unsub
 
     except Exception as err:
         _LOGGER.error("Failed to set up cleanup scheduler: %s", err)
+        return None
+
+
+async def _async_cleanup_expired_codes(hass: HomeAssistant) -> None:
+    """Clean up expired guest codes."""
+    try:
+        data = hass.data.get(DOMAIN)
+        if not data:
+            _LOGGER.warning("Nimlykoder data not available for cleanup")
+            return
+
+        config = data["config"]
+        if not config.get(CONF_AUTO_EXPIRE, True):
+            _LOGGER.debug("Auto-expire is disabled, skipping cleanup")
+            return
+
+        storage = data["storage"]
+        mqtt_adapter = data["mqtt_adapter"]
+
+        today = date.today()
+        expired_slots = storage.expired_guest_slots(today)
+
+        if not expired_slots:
+            _LOGGER.debug("No expired guest codes to clean up")
+            return
+
+        _LOGGER.info("Starting cleanup of %d expired guest codes", len(expired_slots))
+        removed_count = 0
+
+        for slot in expired_slots:
+            try:
+                entry = storage.get(slot)
+                name = entry.name if entry else f"Slot {slot}"
+                
+                # Remove from MQTT/lock
+                await mqtt_adapter.remove_code(slot)
+                # Remove from storage
+                await storage.remove(slot)
+                
+                _LOGGER.info(
+                    "Removed expired code '%s' from slot %s", name, slot
+                )
+                removed_count += 1
+            except Exception as err:
+                _LOGGER.error(
+                    "Failed to remove expired code from slot %s: %s", slot, err
+                )
+
+        _LOGGER.info(
+            "Cleanup completed: removed %d of %d expired codes",
+            removed_count, len(expired_slots)
+        )
+
+    except Exception as err:
+        _LOGGER.error("Error during cleanup: %s", err)

@@ -23,6 +23,7 @@ class NimlykoderPanel extends LitElement {
             config: { type: Object },
             showExpiredInfo: { type: Boolean },
             suggestedSlot: { type: Number },
+            translations: { type: Object },
         };
     }
 
@@ -40,6 +41,73 @@ class NimlykoderPanel extends LitElement {
         this.config = { auto_expire: true, cleanup_time: "03:00:00" };
         this.showExpiredInfo = false;
         this.suggestedSlot = null;
+        this.translations = this._defaultTranslations();
+    }
+
+    // Default English translations (fallback)
+    _defaultTranslations() {
+        return {
+            title: "Nimlykoder",
+            subtitle: "Manage PIN codes for your Nimly lock",
+            add_code: "Add Code",
+            search_placeholder: "Search by name, slot, or type...",
+            stats: {
+                total: "Total Codes",
+                permanent: "Permanent",
+                guest: "Guest",
+                expired: "Expired",
+            },
+            status: {
+                active: "Active",
+                expired: "Expired",
+                reserved: "Reserved",
+            },
+            type: {
+                permanent: "Permanent",
+                guest: "Guest",
+            },
+            dialog: {
+                add_title: "Add New Person",
+                edit_title: "Edit",
+                remove_title: "Remove Person",
+                confirm_remove: "Are you sure you want to remove",
+                remove_description: "This will delete the PIN code from slot {slot} and remove it from the lock.",
+                name: "Name",
+                name_placeholder: "e.g., John Doe",
+                pin_code: "PIN Code",
+                pin_placeholder: "6 digits",
+                pin_hint: "Enter a 6 digit PIN code",
+                type: "Type",
+                expiry: "Expiry Date",
+                expiry_hint: "Leave empty for no expiry (permanent access)",
+                slot: "Slot",
+                next_available: "Next available",
+                cancel: "Cancel",
+                save: "Save Changes",
+                add: "Add Person",
+                remove: "Remove",
+            },
+            empty: {
+                title: "No PIN codes yet",
+                description: "Add your first person to get started with Nimlykoder",
+                add_first: "Add First Person",
+            },
+            no_results: {
+                title: "No results found",
+                description: "Try a different search term",
+            },
+            loading: "Loading codes...",
+            retry: "Retry",
+            expires: "Expires",
+            expired_on: "Expired",
+            slot_label: "Slot",
+            expired_info: {
+                title: "Expired Codes",
+                description: "Expired codes have passed their set expiry date and are no longer valid for entry.",
+                auto_cleanup: "Auto-cleanup is enabled. Expired codes will be automatically removed at {time}.",
+                manual_cleanup: "Auto-cleanup is disabled. Remove expired codes manually.",
+            },
+        };
     }
 
     static get styles() {
@@ -668,6 +736,7 @@ class NimlykoderPanel extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
+        this.loadTranslations();
         this.loadCodes();
         this.loadConfig();
     }
@@ -696,6 +765,53 @@ class NimlykoderPanel extends LitElement {
         } catch (err) {
             console.error("Failed to load config:", err);
         }
+    }
+
+    async loadTranslations() {
+        try {
+            const result = await this.hass.callWS({
+                type: "nimlykoder/translations",
+            });
+            if (result && result.translations) {
+                // Deep merge with defaults
+                this.translations = this._mergeTranslations(this._defaultTranslations(), result.translations);
+            }
+        } catch (err) {
+            console.error("Failed to load translations:", err);
+            // Keep default translations
+        }
+    }
+
+    _mergeTranslations(defaults, loaded) {
+        const result = { ...defaults };
+        for (const key of Object.keys(loaded)) {
+            if (typeof loaded[key] === 'object' && loaded[key] !== null && !Array.isArray(loaded[key])) {
+                result[key] = this._mergeTranslations(defaults[key] || {}, loaded[key]);
+            } else {
+                result[key] = loaded[key];
+            }
+        }
+        return result;
+    }
+
+    // Translation helper: t("dialog.cancel") -> this.translations.dialog.cancel
+    t(path, replacements = {}) {
+        const keys = path.split('.');
+        let value = this.translations;
+        for (const key of keys) {
+            if (value && typeof value === 'object' && key in value) {
+                value = value[key];
+            } else {
+                return path; // Return the path as fallback
+            }
+        }
+        // Apply replacements like {slot} -> actual value
+        if (typeof value === 'string') {
+            for (const [k, v] of Object.entries(replacements)) {
+                value = value.replace(`{${k}}`, v);
+            }
+        }
+        return value;
     }
 
     get cleanupTimeFormatted() {
@@ -754,8 +870,8 @@ class NimlykoderPanel extends LitElement {
     }
 
     getBadgeText(code) {
-        if (this.isExpired(code)) return "Expired";
-        return code.type === "permanent" ? "Permanent" : "Guest";
+        if (this.isExpired(code)) return this.t('status.expired');
+        return code.type === "permanent" ? this.t('type.permanent') : this.t('type.guest');
     }
 
     formatDate(dateStr) {
@@ -797,8 +913,8 @@ class NimlykoderPanel extends LitElement {
                         </svg>
                     </div>
                     <div class="header-title">
-                        <h1>Nimlykoder</h1>
-                        <p>Manage PIN codes for your Nimly lock</p>
+                        <h1>${this.t('title')}</h1>
+                        <p>${this.t('subtitle')}</p>
                     </div>
                 </div>
             </div>
@@ -813,15 +929,15 @@ class NimlykoderPanel extends LitElement {
             <div class="stats">
                 <div class="stat-card">
                     <div class="stat-value">${total}</div>
-                    <div class="stat-label">Total Codes</div>
+                    <div class="stat-label">${this.t('stats.total')}</div>
                 </div>
                 <div class="stat-card permanent">
                     <div class="stat-value">${permanent}</div>
-                    <div class="stat-label">Permanent</div>
+                    <div class="stat-label">${this.t('stats.permanent')}</div>
                 </div>
                 <div class="stat-card guest">
                     <div class="stat-value">${guest}</div>
-                    <div class="stat-label">Guest</div>
+                    <div class="stat-label">${this.t('stats.guest')}</div>
                 </div>
                 <div class="stat-card expired">
                     <div class="stat-header">
@@ -837,20 +953,20 @@ class NimlykoderPanel extends LitElement {
                             <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
                         </svg>
                     </div>
-                    <div class="stat-label">Expired</div>
+                    <div class="stat-label">${this.t('stats.expired')}</div>
                     ${this.showExpiredInfo ? html`
                         <div class="info-tooltip">
                             <h4>
                                 <svg viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/>
                                 </svg>
-                                Expired Codes
+                                ${this.t('expired_info.title')}
                             </h4>
                             <p>
-                                Expired codes have passed their set expiry date and are no longer valid for entry.
+                                ${this.t('expired_info.description')}
                                 ${autoExpireEnabled 
-                                    ? html`<br><br>These codes will be <strong>automatically removed</strong> from the lock at <span class="highlight">${this.cleanupTimeFormatted}</span> daily.`
-                                    : html`<br><br>Auto-cleanup is disabled. You need to manually remove expired codes.`
+                                    ? html`<br><br>${this.t('expired_info.auto_cleanup', { time: this.cleanupTimeFormatted })}`
+                                    : html`<br><br>${this.t('expired_info.manual_cleanup')}`
                                 }
                             </p>
                         </div>
@@ -870,7 +986,7 @@ class NimlykoderPanel extends LitElement {
                     <input
                         type="text"
                         class="search-input"
-                        placeholder="Search by name, slot, or type..."
+                        placeholder="${this.t('search_placeholder')}"
                         .value=${this.searchQuery}
                         @input=${(e) => (this.searchQuery = e.target.value)}
                     />
@@ -879,7 +995,7 @@ class NimlykoderPanel extends LitElement {
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                     </svg>
-                    Add Code
+                    ${this.t('add_code')}
                 </button>
             </div>
         `;
@@ -895,8 +1011,8 @@ class NimlykoderPanel extends LitElement {
         if (codes.length === 0) {
             return html`
                 <div class="empty-state">
-                    <h2>No results found</h2>
-                    <p>Try a different search term</p>
+                    <h2>${this.t('no_results.title')}</h2>
+                    <p>${this.t('no_results.description')}</p>
                 </div>
             `;
         }
@@ -921,7 +1037,7 @@ class NimlykoderPanel extends LitElement {
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M17.13,17C15.92,18.85 14.11,20.24 12,20.92C9.89,20.24 8.08,18.85 6.87,17C6.53,16.5 6.24,16 6,15.47C6,13.82 8.71,12.47 12,12.47C15.29,12.47 18,13.79 18,15.47C17.76,16 17.47,16.5 17.13,17Z"/>
                             </svg>
-                            Slot ${code.slot}
+                            ${this.t('slot_label')} ${code.slot}
                         </span>
                         ${code.expiry
                             ? html`
@@ -929,7 +1045,7 @@ class NimlykoderPanel extends LitElement {
                                       <svg viewBox="0 0 24 24" fill="currentColor">
                                           <path d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/>
                                       </svg>
-                                      ${this.isExpired(code) ? "Expired" : "Expires"} ${this.formatDate(code.expiry)}
+                                      ${this.isExpired(code) ? this.t('expired_on') : this.t('expires')} ${this.formatDate(code.expiry)}
                                   </span>
                               `
                             : ""}
@@ -943,7 +1059,7 @@ class NimlykoderPanel extends LitElement {
                             this.editingCode = code;
                             this.showEditDialog = true;
                         }}
-                        title="Edit"
+                        title="${this.t('dialog.edit_title')}"
                     >
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
@@ -955,7 +1071,7 @@ class NimlykoderPanel extends LitElement {
                             this.removingCode = code;
                             this.showRemoveDialog = true;
                         }}
-                        title="Remove"
+                        title="${this.t('dialog.remove')}"
                     >
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
@@ -974,13 +1090,13 @@ class NimlykoderPanel extends LitElement {
                         <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
                     </svg>
                 </div>
-                <h2>No PIN codes yet</h2>
-                <p>Add your first person to get started with Nimlykoder</p>
+                <h2>${this.t('empty.title')}</h2>
+                <p>${this.t('empty.description')}</p>
                 <button class="btn btn-primary" @click=${() => this._openAddDialog()}>
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                     </svg>
-                    Add First Person
+                    ${this.t('empty.add_first')}
                 </button>
             </div>
         `;
@@ -990,7 +1106,7 @@ class NimlykoderPanel extends LitElement {
         return html`
             <div class="loading-container">
                 <div class="spinner"></div>
-                <p>Loading codes...</p>
+                <p>${this.t('loading')}</p>
             </div>
         `;
     }
@@ -1002,7 +1118,7 @@ class NimlykoderPanel extends LitElement {
                     <path d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
                 </svg>
                 <span>${this.error}</span>
-                <button class="btn btn-text" @click=${() => this.loadCodes()}>Retry</button>
+                <button class="btn btn-text" @click=${() => this.loadCodes()}>${this.t('retry')}</button>
             </div>
         `;
     }
@@ -1012,45 +1128,45 @@ class NimlykoderPanel extends LitElement {
             <div class="dialog-overlay" @click=${this._closeAddDialog}>
                 <div class="dialog" @click=${(e) => e.stopPropagation()}>
                     <div class="dialog-header">
-                        <h2>Add New Person</h2>
+                        <h2>${this.t('dialog.add_title')}</h2>
                         <button class="btn btn-icon btn-text" @click=${this._closeAddDialog}>
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
                             </svg>
                         </button>
                     </div>
-                    <div class="dialog-content">
+                    <div class="dialog-content" @click=${(e) => e.stopPropagation()}>
                         <div class="form-group">
-                            <label for="add-name">Name *</label>
-                            <input type="text" id="add-name" placeholder="e.g., John Doe" required />
+                            <label for="add-name">${this.t('dialog.name')} *</label>
+                            <input type="text" id="add-name" placeholder="${this.t('dialog.name_placeholder')}" required />
                         </div>
                         <div class="form-group">
-                            <label for="add-pin">PIN Code *</label>
-                            <input type="password" id="add-pin" placeholder="4-8 digits" pattern="[0-9]{4,8}" required />
-                            <small>Enter a 4-8 digit PIN code</small>
+                            <label for="add-pin">${this.t('dialog.pin_code')} *</label>
+                            <input type="password" id="add-pin" placeholder="${this.t('dialog.pin_placeholder')}" pattern="[0-9]{6}" maxlength="6" required />
+                            <small>${this.t('dialog.pin_hint')}</small>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="add-type">Type *</label>
-                                <select id="add-type" @change=${this._onTypeChange}>
-                                    <option value="permanent">Permanent</option>
-                                    <option value="guest">Guest</option>
+                                <label for="add-type">${this.t('dialog.type')} *</label>
+                                <select id="add-type" @change=${this._onTypeChange} @click=${(e) => e.stopPropagation()}>
+                                    <option value="permanent">${this.t('type.permanent')}</option>
+                                    <option value="guest">${this.t('type.guest')}</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="add-slot">Slot</label>
+                                <label for="add-slot">${this.t('dialog.slot')}</label>
                                 <input type="number" id="add-slot" min="0" max="99" .value=${this.suggestedSlot !== null ? String(this.suggestedSlot) : ""} />
-                                <small>Next available: ${this.suggestedSlot !== null ? this.suggestedSlot : "..."}</small>
+                                <small>${this.t('dialog.next_available')}: ${this.suggestedSlot !== null ? this.suggestedSlot : "..."}</small>
                             </div>
                         </div>
                         <div class="form-group" id="expiry-group" style="display: none;">
-                            <label for="add-expiry">Expiry Date</label>
+                            <label for="add-expiry">${this.t('dialog.expiry')}</label>
                             <input type="date" id="add-expiry" />
                         </div>
                     </div>
                     <div class="dialog-actions">
-                        <button class="btn btn-secondary" @click=${this._closeAddDialog}>Cancel</button>
-                        <button class="btn btn-primary" @click=${this._handleAddSubmit}>Add Person</button>
+                        <button class="btn btn-secondary" @click=${this._closeAddDialog}>${this.t('dialog.cancel')}</button>
+                        <button class="btn btn-primary" @click=${this._handleAddSubmit}>${this.t('dialog.add')}</button>
                     </div>
                 </div>
             </div>
@@ -1063,7 +1179,7 @@ class NimlykoderPanel extends LitElement {
             <div class="dialog-overlay" @click=${this._closeEditDialog}>
                 <div class="dialog" @click=${(e) => e.stopPropagation()}>
                     <div class="dialog-header">
-                        <h2>Edit ${this.editingCode.name}</h2>
+                        <h2>${this.t('dialog.edit_title')} ${this.editingCode.name}</h2>
                         <button class="btn btn-icon btn-text" @click=${this._closeEditDialog}>
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
@@ -1072,14 +1188,14 @@ class NimlykoderPanel extends LitElement {
                     </div>
                     <div class="dialog-content">
                         <div class="form-group">
-                            <label for="edit-expiry">Expiry Date</label>
+                            <label for="edit-expiry">${this.t('dialog.expiry')}</label>
                             <input type="date" id="edit-expiry" .value=${this.editingCode.expiry || ""} />
-                            <small>Leave empty for no expiry (permanent access)</small>
+                            <small>${this.t('dialog.expiry_hint')}</small>
                         </div>
                     </div>
                     <div class="dialog-actions">
-                        <button class="btn btn-secondary" @click=${this._closeEditDialog}>Cancel</button>
-                        <button class="btn btn-primary" @click=${this._handleEditSubmit}>Save Changes</button>
+                        <button class="btn btn-secondary" @click=${this._closeEditDialog}>${this.t('dialog.cancel')}</button>
+                        <button class="btn btn-primary" @click=${this._handleEditSubmit}>${this.t('dialog.save')}</button>
                     </div>
                 </div>
             </div>
@@ -1092,7 +1208,7 @@ class NimlykoderPanel extends LitElement {
             <div class="dialog-overlay" @click=${this._closeRemoveDialog}>
                 <div class="dialog" @click=${(e) => e.stopPropagation()}>
                     <div class="dialog-header">
-                        <h2>Remove Person</h2>
+                        <h2>${this.t('dialog.remove_title')}</h2>
                         <button class="btn btn-icon btn-text" @click=${this._closeRemoveDialog}>
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
@@ -1100,14 +1216,14 @@ class NimlykoderPanel extends LitElement {
                         </button>
                     </div>
                     <div class="dialog-content">
-                        <p>Are you sure you want to remove <strong>${this.removingCode.name}</strong>?</p>
+                        <p>${this.t('dialog.confirm_remove')} <strong>${this.removingCode.name}</strong>?</p>
                         <p style="margin-top: 12px; color: var(--text-secondary); font-size: 14px;">
-                            This will delete the PIN code from slot ${this.removingCode.slot} and remove it from the lock.
+                            ${this.t('dialog.remove_description', { slot: this.removingCode.slot })}
                         </p>
                     </div>
                     <div class="dialog-actions">
-                        <button class="btn btn-secondary" @click=${this._closeRemoveDialog}>Cancel</button>
-                        <button class="btn btn-danger" @click=${this._handleRemove}>Remove</button>
+                        <button class="btn btn-secondary" @click=${this._closeRemoveDialog}>${this.t('dialog.cancel')}</button>
+                        <button class="btn btn-danger" @click=${this._handleRemove}>${this.t('dialog.remove')}</button>
                     </div>
                 </div>
             </div>

@@ -19,6 +19,7 @@ from .const import (
     WS_TYPE_UPDATE_EXPIRY,
     WS_TYPE_SUGGEST_SLOTS,
     WS_TYPE_CONFIG,
+    WS_TYPE_TRANSLATIONS,
     TYPE_PERMANENT,
     TYPE_GUEST,
     CONF_AUTO_EXPIRE,
@@ -37,6 +38,7 @@ def async_register_websocket_handlers(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, handle_update_expiry)
     websocket_api.async_register_command(hass, handle_suggest_slots)
     websocket_api.async_register_command(hass, handle_config)
+    websocket_api.async_register_command(hass, handle_translations)
 
 
 @websocket_api.websocket_command(
@@ -95,6 +97,13 @@ async def handle_add(
         expiry = msg.get("expiry")
         preferred_slot = msg.get("slot")
         force = msg.get("force", False)
+
+        # Validate PIN code is 6 digits
+        if not pin_code.isdigit() or len(pin_code) != 6:
+            connection.send_error(
+                msg["id"], "invalid_input", "PIN code must be exactly 6 digits"
+            )
+            return
 
         # Policy enforcement
         if code_type == TYPE_GUEST and not expiry:
@@ -332,3 +341,50 @@ async def handle_config(
     except Exception as err:
         _LOGGER.error("Error getting config: %s", err)
         connection.send_error(msg["id"], "config_failed", str(err))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_TRANSLATIONS,
+    }
+)
+@websocket_api.async_response
+async def handle_translations(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle translations command - returns panel translations for current language."""
+    import json
+    from pathlib import Path
+
+    try:
+        # Get user's language from hass config
+        language = hass.config.language or "en"
+
+        # Path to translations directory
+        translations_dir = Path(__file__).parent / "translations"
+
+        # Try to load the user's language, fallback to English
+        translation_file = translations_dir / f"{language}.json"
+        if not translation_file.exists():
+            translation_file = translations_dir / "en.json"
+
+        # Load the translation file
+        with open(translation_file, "r", encoding="utf-8") as f:
+            translations = json.load(f)
+
+        # Extract panel translations
+        panel_translations = translations.get("panel", {})
+
+        connection.send_result(
+            msg["id"],
+            {
+                "language": language,
+                "translations": panel_translations,
+            },
+        )
+
+    except Exception as err:
+        _LOGGER.error("Error getting translations: %s", err)
+        connection.send_error(msg["id"], "translations_failed", str(err))

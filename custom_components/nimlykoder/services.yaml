@@ -11,9 +11,9 @@ add_code:
         text:
     pin_code:
       name: PIN Code
-      description: 4-digit PIN code
+      description: 6-digit PIN code
       required: true
-      example: "1234"
+      example: "123456"
       selector:
         text:
     type:
@@ -88,3 +88,7 @@ update_expiry:
 list_codes:
   name: List Codes
   description: List all PIN codes
+
+cleanup_expired:
+  name: Cleanup Expired Codes
+  description: Manually trigger cleanup of all expired guest codes. This removes expired codes from both the lock and the storage.

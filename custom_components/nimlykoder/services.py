@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, date
 
 import voluptuous as vol
 
@@ -16,6 +16,7 @@ from .const import (
     SERVICE_REMOVE_CODE,
     SERVICE_UPDATE_EXPIRY,
     SERVICE_LIST_CODES,
+    SERVICE_CLEANUP_EXPIRED,
     TYPE_PERMANENT,
     TYPE_GUEST,
 )
@@ -64,6 +65,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         expiry = call.data.get("expiry")
         preferred_slot = call.data.get("slot")
         force = call.data.get("force", False)
+
+        # Validate PIN code is 6 digits
+        if not pin_code.isdigit() or len(pin_code) != 6:
+            raise HomeAssistantError("PIN code must be exactly 6 digits")
 
         # Policy enforcement
         if code_type == TYPE_GUEST and not expiry:
@@ -183,6 +188,40 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         # Return as service response
         return {"codes": [entry.to_dict() for entry in entries]}
 
+    async def handle_cleanup_expired(call: ServiceCall) -> None:
+        """Handle cleanup_expired service call - manually trigger expired code cleanup."""
+        data = hass.data[DOMAIN]
+        storage = data["storage"]
+        mqtt_adapter = data["mqtt_adapter"]
+
+        today = date.today()
+        expired_slots = storage.expired_guest_slots(today)
+
+        if not expired_slots:
+            _LOGGER.info("No expired guest codes to clean up")
+            return {"removed": 0, "slots": []}
+
+        _LOGGER.info("Manually cleaning up %d expired guest codes", len(expired_slots))
+        removed_slots = []
+
+        for slot in expired_slots:
+            try:
+                entry = storage.get(slot)
+                name = entry.name if entry else f"Slot {slot}"
+
+                # Remove from MQTT/lock
+                await mqtt_adapter.remove_code(slot)
+                # Remove from storage
+                await storage.remove(slot)
+
+                _LOGGER.info("Removed expired code '%s' from slot %s", name, slot)
+                removed_slots.append(slot)
+            except Exception as err:
+                _LOGGER.error("Failed to remove expired code from slot %s: %s", slot, err)
+
+        _LOGGER.info("Manual cleanup completed: removed %d codes", len(removed_slots))
+        return {"removed": len(removed_slots), "slots": removed_slots}
+
     # Register services
     hass.services.async_register(
         DOMAIN,
@@ -213,6 +252,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         supports_response=True,
     )
 
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CLEANUP_EXPIRED,
+        handle_cleanup_expired,
+        supports_response=True,
+    )
+
 
 async def async_unload_services(hass: HomeAssistant) -> None:
     """Unload services."""
@@ -220,3 +266,4 @@ async def async_unload_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_REMOVE_CODE)
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_EXPIRY)
     hass.services.async_remove(DOMAIN, SERVICE_LIST_CODES)
+    hass.services.async_remove(DOMAIN, SERVICE_CLEANUP_EXPIRED)

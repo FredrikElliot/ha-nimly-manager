@@ -7,10 +7,12 @@ from datetime import date, timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers import entity_registry as er
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import (
     DOMAIN,
+    CONF_LOCK_ENTITY,
     CONF_MQTT_TOPIC,
     CONF_SLOT_MIN,
     CONF_SLOT_MAX,
@@ -18,7 +20,6 @@ from .const import (
     CONF_AUTO_EXPIRE,
     CONF_CLEANUP_TIME,
     CONF_OVERWRITE_PROTECTION,
-    DEFAULT_MQTT_TOPIC,
     DEFAULT_SLOT_MIN,
     DEFAULT_SLOT_MAX,
     DEFAULT_RESERVED_SLOTS,
@@ -35,14 +36,69 @@ from .panel import async_register_panel, async_unregister_panel
 _LOGGER = logging.getLogger(__name__)
 
 
+def _get_mqtt_topic_from_entity(hass: HomeAssistant, entity_id: str) -> str | None:
+    """Derive MQTT topic from a lock entity ID."""
+    # For Zigbee2MQTT, the entity ID format is typically: lock.device_name
+    # The MQTT topic is typically: zigbee2mqtt/device_name
+    
+    # Get the entity registry entry to find the device
+    ent_reg = er.async_get(hass)
+    entry = ent_reg.async_get(entity_id)
+    
+    if entry and entry.unique_id:
+        # Zigbee2MQTT unique IDs often contain the device friendly name
+        # Format varies, but we can try to extract it
+        unique_id = entry.unique_id
+        
+        # Common Z2M format: "0x00158d0001234567_lock" or just device name
+        if "_" in unique_id:
+            device_name = unique_id.rsplit("_", 1)[0]
+        else:
+            device_name = unique_id
+            
+        # If it looks like a Zigbee address, use the entity name instead
+        if device_name.startswith("0x"):
+            # Fall back to entity name
+            device_name = entity_id.replace("lock.", "").replace("_", " ")
+        
+        return f"zigbee2mqtt/{device_name}"
+    
+    # Fallback: derive from entity_id
+    device_name = entity_id.replace("lock.", "").replace("_", " ")
+    return f"zigbee2mqtt/{device_name}"
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Nimlykoder from a config entry."""
     # Get configuration
     options = entry.options
+    
+    # Support both new (lock_entity) and legacy (mqtt_topic) config
+    lock_entity = options.get(CONF_LOCK_ENTITY)
+    mqtt_topic = options.get(CONF_MQTT_TOPIC)
+    
+    if lock_entity:
+        # New config: derive MQTT topic from entity
+        mqtt_topic = _get_mqtt_topic_from_entity(hass, lock_entity)
+        _LOGGER.debug("Derived MQTT topic '%s' from entity '%s'", mqtt_topic, lock_entity)
+    elif not mqtt_topic:
+        # No config at all - shouldn't happen but handle gracefully
+        _LOGGER.error("No lock entity or MQTT topic configured")
+        return False
+    
+    # Ensure slot values are integers
+    slot_min = options.get(CONF_SLOT_MIN, DEFAULT_SLOT_MIN)
+    slot_max = options.get(CONF_SLOT_MAX, DEFAULT_SLOT_MAX)
+    if isinstance(slot_min, float):
+        slot_min = int(slot_min)
+    if isinstance(slot_max, float):
+        slot_max = int(slot_max)
+    
     config = {
-        CONF_MQTT_TOPIC: options.get(CONF_MQTT_TOPIC, DEFAULT_MQTT_TOPIC),
-        CONF_SLOT_MIN: options.get(CONF_SLOT_MIN, DEFAULT_SLOT_MIN),
-        CONF_SLOT_MAX: options.get(CONF_SLOT_MAX, DEFAULT_SLOT_MAX),
+        CONF_LOCK_ENTITY: lock_entity,
+        CONF_MQTT_TOPIC: mqtt_topic,
+        CONF_SLOT_MIN: slot_min,
+        CONF_SLOT_MAX: slot_max,
         CONF_RESERVED_SLOTS: options.get(CONF_RESERVED_SLOTS, DEFAULT_RESERVED_SLOTS),
         CONF_AUTO_EXPIRE: options.get(CONF_AUTO_EXPIRE, DEFAULT_AUTO_EXPIRE),
         CONF_CLEANUP_TIME: options.get(CONF_CLEANUP_TIME, DEFAULT_CLEANUP_TIME),

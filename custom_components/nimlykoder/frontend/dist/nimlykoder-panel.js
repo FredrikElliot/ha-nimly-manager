@@ -80,6 +80,7 @@ class NimlykoderPanel extends LitElement {
                 type: "Type",
                 expiry: "Expiry Date",
                 expiry_hint: "Leave empty for no expiry (permanent access)",
+                permanent_no_expiry: "Permanent codes do not have an expiry date.",
                 slot: "Slot",
                 next_available: "Next available",
                 cancel: "Cancel",
@@ -1175,6 +1176,7 @@ class NimlykoderPanel extends LitElement {
 
     _renderEditDialog() {
         if (!this.editingCode) return "";
+        const isGuest = this.editingCode.type === 'guest';
         return html`
             <div class="dialog-overlay" @click=${this._closeEditDialog}>
                 <div class="dialog" @click=${(e) => e.stopPropagation()}>
@@ -1187,15 +1189,21 @@ class NimlykoderPanel extends LitElement {
                         </button>
                     </div>
                     <div class="dialog-content">
-                        <div class="form-group">
-                            <label for="edit-expiry">${this.t('dialog.expiry')}</label>
-                            <input type="date" id="edit-expiry" .value=${this.editingCode.expiry || ""} />
-                            <small>${this.t('dialog.expiry_hint')}</small>
-                        </div>
+                        ${isGuest ? html`
+                            <div class="form-group">
+                                <label for="edit-expiry">${this.t('dialog.expiry')}</label>
+                                <input type="date" id="edit-expiry" .value=${this.editingCode.expiry || ""} />
+                                <small>${this.t('dialog.expiry_hint')}</small>
+                            </div>
+                        ` : html`
+                            <p style="color: var(--text-secondary);">${this.t('dialog.permanent_no_expiry')}</p>
+                        `}
                     </div>
                     <div class="dialog-actions">
                         <button class="btn btn-secondary" @click=${this._closeEditDialog}>${this.t('dialog.cancel')}</button>
-                        <button class="btn btn-primary" @click=${this._handleEditSubmit}>${this.t('dialog.save')}</button>
+                        ${isGuest ? html`
+                            <button class="btn btn-primary" @click=${this._handleEditSubmit}>${this.t('dialog.save')}</button>
+                        ` : ''}
                     </div>
                 </div>
             </div>

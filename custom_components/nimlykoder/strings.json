@@ -3,16 +3,25 @@
     "step": {
       "user": {
         "title": "Configure Nimlykoder",
-        "description": "Set up your Nimly lock code manager",
+        "description": "Set up your Nimly lock code manager. Select your Nimly lock from the list below.",
         "data": {
           "name": "Friendly Name",
-          "mqtt_topic": "MQTT Base Topic",
+          "lock_entity": "Nimly Lock",
           "slot_min": "Minimum Slot Number",
           "slot_max": "Maximum Slot Number",
           "reserved_slots": "Reserved Slots (comma separated)",
           "auto_expire": "Enable Automatic Expiry Cleanup",
-          "cleanup_time": "Daily Cleanup Time (HH:MM:SS)",
+          "cleanup_time": "Daily Cleanup Time",
           "overwrite_protection": "Enable Overwrite Protection"
+        },
+        "data_description": {
+          "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
+          "slot_min": "First slot number available for PIN codes (0-99)",
+          "slot_max": "Last slot number available for PIN codes (0-99)",
+          "reserved_slots": "Slots reserved for permanent codes (e.g., family members). Enter slot numbers separated by commas.",
+          "auto_expire": "Automatically remove expired guest codes at the scheduled time",
+          "cleanup_time": "Time of day when expired codes will be removed",
+          "overwrite_protection": "Prevent accidental overwriting of existing codes"
         }
       }
     },
@@ -29,13 +38,22 @@
         "title": "Configure Nimlykoder Options",
         "description": "Update your Nimly lock code manager settings",
         "data": {
-          "mqtt_topic": "MQTT Base Topic",
+          "lock_entity": "Nimly Lock",
           "slot_min": "Minimum Slot Number",
           "slot_max": "Maximum Slot Number",
           "reserved_slots": "Reserved Slots (comma separated)",
           "auto_expire": "Enable Automatic Expiry Cleanup",
-          "cleanup_time": "Daily Cleanup Time (HH:MM:SS)",
+          "cleanup_time": "Daily Cleanup Time",
           "overwrite_protection": "Enable Overwrite Protection"
+        },
+        "data_description": {
+          "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
+          "slot_min": "First slot number available for PIN codes (0-99)",
+          "slot_max": "Last slot number available for PIN codes (0-99)",
+          "reserved_slots": "Slots reserved for permanent codes (e.g., family members). Enter slot numbers separated by commas.",
+          "auto_expire": "Automatically remove expired guest codes at the scheduled time",
+          "cleanup_time": "Time of day when expired codes will be removed",
+          "overwrite_protection": "Prevent accidental overwriting of existing codes"
         }
       }
     },

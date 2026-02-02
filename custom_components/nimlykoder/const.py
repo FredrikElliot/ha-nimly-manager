@@ -3,13 +3,16 @@
 DOMAIN = "nimlykoder"
 
 # Configuration keys
-CONF_MQTT_TOPIC = "mqtt_topic"
+CONF_LOCK_ENTITY = "lock_entity"
 CONF_SLOT_MIN = "slot_min"
 CONF_SLOT_MAX = "slot_max"
 CONF_RESERVED_SLOTS = "reserved_slots"
 CONF_AUTO_EXPIRE = "auto_expire"
 CONF_CLEANUP_TIME = "cleanup_time"
 CONF_OVERWRITE_PROTECTION = "overwrite_protection"
+
+# Legacy config key (for migration)
+CONF_MQTT_TOPIC = "mqtt_topic"
 
 # Defaults
 DEFAULT_SLOT_MIN = 0
@@ -18,7 +21,6 @@ DEFAULT_RESERVED_SLOTS = [1, 2, 3]
 DEFAULT_AUTO_EXPIRE = True
 DEFAULT_CLEANUP_TIME = "03:00:00"
 DEFAULT_OVERWRITE_PROTECTION = True
-DEFAULT_MQTT_TOPIC = "zigbee2mqtt/nimly_lock"
 
 # Storage
 STORAGE_VERSION = 1

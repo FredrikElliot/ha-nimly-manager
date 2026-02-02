@@ -3,16 +3,25 @@
     "step": {
       "user": {
         "title": "Konfigurera Nimlykoder",
-        "description": "Ställ in din Nimly-lås kodhanterare",
+        "description": "Ställ in din Nimly-lås kodhanterare. Välj ditt Nimly-lås från listan nedan.",
         "data": {
           "name": "Vänligt Namn",
-          "mqtt_topic": "MQTT Bas-ämne",
+          "lock_entity": "Nimly-lås",
           "slot_min": "Minsta Platsnummer",
           "slot_max": "Högsta Platsnummer",
           "reserved_slots": "Reserverade Platser (kommaseparerade)",
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
-          "cleanup_time": "Daglig Rensning Tid (HH:MM:SS)",
+          "cleanup_time": "Daglig Rensningstid",
           "overwrite_protection": "Aktivera Överskrivningsskydd"
+        },
+        "data_description": {
+          "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
+          "slot_min": "Första platsnummer tillgängligt för PIN-koder (0-99)",
+          "slot_max": "Sista platsnummer tillgängligt för PIN-koder (0-99)",
+          "reserved_slots": "Platser reserverade för permanenta koder (t.ex. familjemedlemmar). Ange platsnummer separerade med komma.",
+          "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
+          "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
+          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder"
         }
       }
     },
@@ -29,13 +38,22 @@
         "title": "Konfigurera Nimlykoder Alternativ",
         "description": "Uppdatera dina Nimly-lås kodhanterare inställningar",
         "data": {
-          "mqtt_topic": "MQTT Bas-ämne",
+          "lock_entity": "Nimly-lås",
           "slot_min": "Minsta Platsnummer",
           "slot_max": "Högsta Platsnummer",
           "reserved_slots": "Reserverade Platser (kommaseparerade)",
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
-          "cleanup_time": "Daglig Rensning Tid (HH:MM:SS)",
+          "cleanup_time": "Daglig Rensningstid",
           "overwrite_protection": "Aktivera Överskrivningsskydd"
+        },
+        "data_description": {
+          "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
+          "slot_min": "Första platsnummer tillgängligt för PIN-koder (0-99)",
+          "slot_max": "Sista platsnummer tillgängligt för PIN-koder (0-99)",
+          "reserved_slots": "Platser reserverade för permanenta koder (t.ex. familjemedlemmar). Ange platsnummer separerade med komma.",
+          "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
+          "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
+          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder"
         }
       }
     },
@@ -145,6 +163,7 @@
       "type": "Typ",
       "expiry": "Utgångsdatum",
       "expiry_hint": "Lämna tomt för ingen utgång (permanent åtkomst)",
+      "permanent_no_expiry": "Permanenta koder har inget utgångsdatum.",
       "slot": "Plats",
       "next_available": "Nästa lediga",
       "suggested_slot": "Föreslagen plats",

@@ -9,17 +9,17 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 
 from .const import (
     DOMAIN,
-    CONF_MQTT_TOPIC,
+    CONF_LOCK_ENTITY,
     CONF_SLOT_MIN,
     CONF_SLOT_MAX,
     CONF_RESERVED_SLOTS,
     CONF_AUTO_EXPIRE,
     CONF_CLEANUP_TIME,
     CONF_OVERWRITE_PROTECTION,
-    DEFAULT_MQTT_TOPIC,
     DEFAULT_SLOT_MIN,
     DEFAULT_SLOT_MAX,
     DEFAULT_RESERVED_SLOTS,
@@ -83,19 +83,21 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Optional("name", default="Nimlykoder"): str,
-                vol.Required(CONF_MQTT_TOPIC, default=DEFAULT_MQTT_TOPIC): str,
-                vol.Required(CONF_SLOT_MIN, default=DEFAULT_SLOT_MIN): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=99)
+                vol.Required(CONF_LOCK_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="lock")
                 ),
-                vol.Required(CONF_SLOT_MAX, default=DEFAULT_SLOT_MAX): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=99)
+                vol.Required(CONF_SLOT_MIN, default=DEFAULT_SLOT_MIN): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=99, mode="box")
+                ),
+                vol.Required(CONF_SLOT_MAX, default=DEFAULT_SLOT_MAX): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=99, mode="box")
                 ),
                 vol.Required(
                     CONF_RESERVED_SLOTS,
                     default=_format_reserved_slots(DEFAULT_RESERVED_SLOTS),
                 ): str,
                 vol.Required(CONF_AUTO_EXPIRE, default=DEFAULT_AUTO_EXPIRE): bool,
-                vol.Required(CONF_CLEANUP_TIME, default=DEFAULT_CLEANUP_TIME): str,
+                vol.Required(CONF_CLEANUP_TIME, default=DEFAULT_CLEANUP_TIME): selector.TimeSelector(),
                 vol.Required(
                     CONF_OVERWRITE_PROTECTION, default=DEFAULT_OVERWRITE_PROTECTION
                 ): bool,
@@ -149,7 +151,7 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
             current_reserved = _format_reserved_slots(DEFAULT_RESERVED_SLOTS)
 
         # Get other options with safe defaults
-        mqtt_topic = options.get(CONF_MQTT_TOPIC) or DEFAULT_MQTT_TOPIC
+        lock_entity = options.get(CONF_LOCK_ENTITY) or ""
         slot_min = options.get(CONF_SLOT_MIN)
         if slot_min is None:
             slot_min = DEFAULT_SLOT_MIN
@@ -167,17 +169,23 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    CONF_MQTT_TOPIC,
-                    default=mqtt_topic,
-                ): str,
+                    CONF_LOCK_ENTITY,
+                    default=lock_entity,
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="lock")
+                ),
                 vol.Required(
                     CONF_SLOT_MIN,
                     default=slot_min,
-                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=99)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=99, mode="box")
+                ),
                 vol.Required(
                     CONF_SLOT_MAX,
                     default=slot_max,
-                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=99)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=99, mode="box")
+                ),
                 vol.Required(
                     CONF_RESERVED_SLOTS,
                     default=current_reserved,
@@ -189,7 +197,7 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_CLEANUP_TIME,
                     default=cleanup_time,
-                ): str,
+                ): selector.TimeSelector(),
                 vol.Required(
                     CONF_OVERWRITE_PROTECTION,
                     default=overwrite_protection,

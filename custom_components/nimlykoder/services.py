@@ -12,6 +12,7 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import (
     DOMAIN,
+    CONF_MQTT_TOPIC,
     SERVICE_ADD_CODE,
     SERVICE_REMOVE_CODE,
     SERVICE_UPDATE_EXPIRY,
@@ -54,6 +55,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_add_code(call: ServiceCall) -> None:
         """Handle add_code service call."""
+        _LOGGER.info("[handle_add_code] Service called with data: %s", call.data)
+        
         data = hass.data[DOMAIN]
         storage = data["storage"]
         mqtt_adapter = data["mqtt_adapter"]
@@ -65,29 +68,49 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         expiry = call.data.get("expiry")
         preferred_slot = call.data.get("slot")
         force = call.data.get("force", False)
+        
+        _LOGGER.info(
+            "[handle_add_code] Adding code - name='%s', type=%s, expiry=%s, preferred_slot=%s, force=%s",
+            name,
+            code_type,
+            expiry,
+            preferred_slot,
+            force,
+        )
 
         # Validate PIN code is 6 digits
         if not pin_code.isdigit() or len(pin_code) != 6:
+            _LOGGER.error("[handle_add_code] Invalid PIN code: must be exactly 6 digits")
             raise HomeAssistantError("PIN code must be exactly 6 digits")
 
         # Policy enforcement
         if code_type == TYPE_GUEST and not expiry:
+            _LOGGER.error("[handle_add_code] Guest codes must have an expiry date")
             raise HomeAssistantError("Guest codes must have an expiry date")
 
         # Validate expiry format if provided
         if expiry:
             try:
                 datetime.fromisoformat(expiry)
+                _LOGGER.debug("[handle_add_code] Expiry date validated: %s", expiry)
             except ValueError as err:
+                _LOGGER.error("[handle_add_code] Invalid expiry date format: %s", err)
                 raise HomeAssistantError(f"Invalid expiry date format: {err}") from err
 
         # Determine slot
         if preferred_slot is not None:
             slot = preferred_slot
+            _LOGGER.debug("[handle_add_code] Using preferred slot: %d", slot)
             # Check bounds
             if slot < config[
                 "slot_min"
             ] or slot > config["slot_max"]:
+                _LOGGER.error(
+                    "[handle_add_code] Slot %d outside range %d-%d",
+                    slot,
+                    config['slot_min'],
+                    config['slot_max'],
+                )
                 raise HomeAssistantError(
                     f"Slot {slot} outside configured range "
                     f"({config['slot_min']}-{config['slot_max']})"
@@ -95,9 +118,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             # Check if occupied
             if storage.is_slot_occupied(slot):
                 if not force and config.get("overwrite_protection", True):
+                    _LOGGER.error(
+                        "[handle_add_code] Slot %d is occupied and force=False", slot
+                    )
                     raise HomeAssistantError(
                         f"Slot {slot} is occupied. Use force=true to overwrite"
                     )
+                _LOGGER.warning("[handle_add_code] Overwriting occupied slot %d", slot)
         else:
             # Auto-select slot
             slot = storage.find_first_free_slot(
@@ -106,48 +133,85 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 config["reserved_slots"],
             )
             if slot is None:
+                _LOGGER.error("[handle_add_code] No free slots available")
                 raise HomeAssistantError("No free slots available")
+            _LOGGER.info("[handle_add_code] Auto-selected slot: %d", slot)
 
         # Check reserved slots
         if preferred_slot is None and slot in config["reserved_slots"]:
+            _LOGGER.error("[handle_add_code] Slot %d is reserved", slot)
             raise HomeAssistantError(f"Slot {slot} is reserved")
 
         # Add to MQTT first
+        _LOGGER.info(
+            "[handle_add_code] Sending PIN to lock via MQTT - slot=%d, topic=%s",
+            slot,
+            config.get(CONF_MQTT_TOPIC, "unknown"),
+        )
         try:
             await mqtt_adapter.add_code(slot, pin_code)
+            _LOGGER.info("[handle_add_code] MQTT publish successful for slot %d", slot)
         except Exception as err:
+            _LOGGER.error(
+                "[handle_add_code] MQTT publish failed for slot %d: %s", slot, err
+            )
             raise HomeAssistantError(f"Failed to add code via MQTT: {err}") from err
 
         # Then store
         try:
             await storage.add(slot, name, code_type, expiry)
             _LOGGER.info(
-                "Added %s code '%s' to slot %s", code_type, name, slot
+                "[handle_add_code] Successfully added %s code '%s' to slot %d",
+                code_type,
+                name,
+                slot,
             )
         except Exception as err:
+            _LOGGER.error(
+                "[handle_add_code] Storage failed for slot %d, rolling back MQTT: %s",
+                slot,
+                err,
+            )
             # Try to clean up MQTT if storage fails
             try:
                 await mqtt_adapter.remove_code(slot)
-            except Exception:
-                pass
+                _LOGGER.info("[handle_add_code] MQTT rollback successful")
+            except Exception as rollback_err:
+                _LOGGER.error(
+                    "[handle_add_code] MQTT rollback also failed: %s", rollback_err
+                )
             raise
 
     async def handle_remove_code(call: ServiceCall) -> None:
         """Handle remove_code service call."""
+        _LOGGER.info("[handle_remove_code] Service called with data: %s", call.data)
+        
         data = hass.data[DOMAIN]
         storage = data["storage"]
         mqtt_adapter = data["mqtt_adapter"]
+        config = data["config"]
 
         slot = call.data["slot"]
 
         # Check if slot exists
         entry = storage.get(slot)
         if entry is None:
+            _LOGGER.error("[handle_remove_code] Slot %d not found in storage", slot)
             raise HomeAssistantError(f"Slot {slot} not found")
+        
+        _LOGGER.info(
+            "[handle_remove_code] Removing code '%s' from slot %d", entry.name, slot
+        )
 
         # Remove from MQTT
+        _LOGGER.info(
+            "[handle_remove_code] Sending remove command via MQTT - slot=%d, topic=%s",
+            slot,
+            config.get(CONF_MQTT_TOPIC, "unknown"),
+        )
         try:
             await mqtt_adapter.remove_code(slot)
+            _LOGGER.info("[handle_remove_code] MQTT remove successful for slot %d", slot)
         except Exception as err:
             raise HomeAssistantError(f"Failed to remove code via MQTT: {err}") from err
 
@@ -183,25 +247,32 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         storage = data["storage"]
 
         entries = storage.list_entries()
-        _LOGGER.info("Listed %d codes", len(entries))
+        _LOGGER.info("[handle_list_codes] Listed %d codes", len(entries))
 
         # Return as service response
         return {"codes": [entry.to_dict() for entry in entries]}
 
     async def handle_cleanup_expired(call: ServiceCall) -> None:
         """Handle cleanup_expired service call - manually trigger expired code cleanup."""
+        _LOGGER.info("[handle_cleanup_expired] Manual cleanup triggered")
+        
         data = hass.data[DOMAIN]
         storage = data["storage"]
         mqtt_adapter = data["mqtt_adapter"]
+        config = data["config"]
 
         today = date.today()
         expired_slots = storage.expired_guest_slots(today)
 
         if not expired_slots:
-            _LOGGER.info("No expired guest codes to clean up")
+            _LOGGER.info("[handle_cleanup_expired] No expired guest codes to clean up")
             return {"removed": 0, "slots": []}
 
-        _LOGGER.info("Manually cleaning up %d expired guest codes", len(expired_slots))
+        _LOGGER.info(
+            "[handle_cleanup_expired] Found %d expired guest codes: %s",
+            len(expired_slots),
+            expired_slots,
+        )
         removed_slots = []
 
         for slot in expired_slots:
@@ -209,17 +280,35 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 entry = storage.get(slot)
                 name = entry.name if entry else f"Slot {slot}"
 
+                _LOGGER.info(
+                    "[handle_cleanup_expired] Removing expired code '%s' from slot %d via MQTT",
+                    name,
+                    slot,
+                )
+                
                 # Remove from MQTT/lock
                 await mqtt_adapter.remove_code(slot)
                 # Remove from storage
                 await storage.remove(slot)
 
-                _LOGGER.info("Removed expired code '%s' from slot %s", name, slot)
+                _LOGGER.info(
+                    "[handle_cleanup_expired] Successfully removed expired code '%s' from slot %d",
+                    name,
+                    slot,
+                )
                 removed_slots.append(slot)
             except Exception as err:
-                _LOGGER.error("Failed to remove expired code from slot %s: %s", slot, err)
+                _LOGGER.error(
+                    "[handle_cleanup_expired] Failed to remove expired code from slot %d: %s",
+                    slot,
+                    err,
+                )
 
-        _LOGGER.info("Manual cleanup completed: removed %d codes", len(removed_slots))
+        _LOGGER.info(
+            "[handle_cleanup_expired] Cleanup completed: removed %d/%d codes",
+            len(removed_slots),
+            len(expired_slots),
+        )
         return {"removed": len(removed_slots), "slots": removed_slots}
 
     # Register services

@@ -37,53 +37,154 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_mqtt_topic_from_entity(hass: HomeAssistant, entity_id: str) -> str | None:
-    """Derive MQTT topic from a lock entity ID."""
-    # For Zigbee2MQTT, the entity ID format is typically: lock.device_name
-    # The MQTT topic is typically: zigbee2mqtt/device_name
+    """Derive MQTT topic from a lock entity ID.
+    
+    For Zigbee2MQTT entities, we try to find the device's friendly name
+    and construct the MQTT topic as: zigbee2mqtt/{friendly_name}
+    """
+    _LOGGER.info("[_get_mqtt_topic_from_entity] Deriving MQTT topic for entity: %s", entity_id)
     
     # Get the entity registry entry to find the device
     ent_reg = er.async_get(hass)
     entry = ent_reg.async_get(entity_id)
     
-    if entry and entry.unique_id:
-        # Zigbee2MQTT unique IDs often contain the device friendly name
-        # Format varies, but we can try to extract it
-        unique_id = entry.unique_id
+    if not entry:
+        _LOGGER.warning(
+            "[_get_mqtt_topic_from_entity] Entity '%s' not found in registry", entity_id
+        )
+        # Fallback: derive from entity_id
+        device_name = entity_id.replace("lock.", "").replace("_", " ")
+        mqtt_topic = f"zigbee2mqtt/{device_name}"
+        _LOGGER.info(
+            "[_get_mqtt_topic_from_entity] Using fallback topic from entity_id: %s",
+            mqtt_topic,
+        )
+        return mqtt_topic
+    
+    _LOGGER.debug(
+        "[_get_mqtt_topic_from_entity] Entity registry entry found: unique_id=%s, platform=%s, device_id=%s",
+        entry.unique_id,
+        entry.platform,
+        entry.device_id,
+    )
+    
+    # Try to get device info for better topic derivation
+    if entry.device_id:
+        from homeassistant.helpers import device_registry as dr
+        dev_reg = dr.async_get(hass)
+        device = dev_reg.async_get(entry.device_id)
         
-        # Common Z2M format: "0x00158d0001234567_lock" or just device name
+        if device:
+            _LOGGER.debug(
+                "[_get_mqtt_topic_from_entity] Device found: name=%s, name_by_user=%s, identifiers=%s",
+                device.name,
+                device.name_by_user,
+                device.identifiers,
+            )
+            
+            # For Z2M devices, the identifier often contains the friendly name
+            # Format: {("mqtt", "zigbee2mqtt_0x00158d0001234567")} or similar
+            for domain, identifier in device.identifiers:
+                _LOGGER.debug(
+                    "[_get_mqtt_topic_from_entity] Checking identifier: domain=%s, id=%s",
+                    domain,
+                    identifier,
+                )
+                if domain == "mqtt" and identifier.startswith("zigbee2mqtt_"):
+                    # Extract the device name from the identifier
+                    device_name = identifier.replace("zigbee2mqtt_", "")
+                    mqtt_topic = f"zigbee2mqtt/{device_name}"
+                    _LOGGER.info(
+                        "[_get_mqtt_topic_from_entity] Derived topic from device identifier: %s",
+                        mqtt_topic,
+                    )
+                    return mqtt_topic
+            
+            # If device has a name, use that
+            if device.name:
+                mqtt_topic = f"zigbee2mqtt/{device.name}"
+                _LOGGER.info(
+                    "[_get_mqtt_topic_from_entity] Derived topic from device name: %s",
+                    mqtt_topic,
+                )
+                return mqtt_topic
+    
+    # Try to extract from unique_id
+    if entry.unique_id:
+        unique_id = entry.unique_id
+        _LOGGER.debug(
+            "[_get_mqtt_topic_from_entity] Trying to derive from unique_id: %s", unique_id
+        )
+        
+        # Common Z2M format: "0x00158d0001234567_lock" or "friendly_name_lock"
         if "_" in unique_id:
             device_name = unique_id.rsplit("_", 1)[0]
         else:
             device_name = unique_id
             
-        # If it looks like a Zigbee address, use the entity name instead
+        # If it looks like a Zigbee address, we can't derive a meaningful name
         if device_name.startswith("0x"):
-            # Fall back to entity name
+            _LOGGER.warning(
+                "[_get_mqtt_topic_from_entity] unique_id appears to be a Zigbee address. "
+                "Using entity name as fallback."
+            )
             device_name = entity_id.replace("lock.", "").replace("_", " ")
         
-        return f"zigbee2mqtt/{device_name}"
+        mqtt_topic = f"zigbee2mqtt/{device_name}"
+        _LOGGER.info(
+            "[_get_mqtt_topic_from_entity] Derived topic from unique_id: %s", mqtt_topic
+        )
+        return mqtt_topic
     
-    # Fallback: derive from entity_id
+    # Final fallback: derive from entity_id
     device_name = entity_id.replace("lock.", "").replace("_", " ")
-    return f"zigbee2mqtt/{device_name}"
+    mqtt_topic = f"zigbee2mqtt/{device_name}"
+    _LOGGER.warning(
+        "[_get_mqtt_topic_from_entity] Using final fallback topic: %s", mqtt_topic
+    )
+    return mqtt_topic
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Nimlykoder from a config entry."""
+    _LOGGER.info("[async_setup_entry] Starting Nimlykoder setup...")
+    
     # Get configuration
     options = entry.options
+    _LOGGER.debug("[async_setup_entry] Config options: %s", options)
     
     # Support both new (lock_entity) and legacy (mqtt_topic) config
     lock_entity = options.get(CONF_LOCK_ENTITY)
     mqtt_topic = options.get(CONF_MQTT_TOPIC)
     
+    _LOGGER.info(
+        "[async_setup_entry] Config - lock_entity=%s, legacy_mqtt_topic=%s",
+        lock_entity,
+        mqtt_topic,
+    )
+    
     if lock_entity:
         # New config: derive MQTT topic from entity
+        _LOGGER.info("[async_setup_entry] Using entity selector config")
         mqtt_topic = _get_mqtt_topic_from_entity(hass, lock_entity)
-        _LOGGER.debug("Derived MQTT topic '%s' from entity '%s'", mqtt_topic, lock_entity)
-    elif not mqtt_topic:
+        if not mqtt_topic:
+            _LOGGER.error(
+                "[async_setup_entry] Failed to derive MQTT topic from entity '%s'",
+                lock_entity,
+            )
+            return False
+        _LOGGER.info(
+            "[async_setup_entry] Derived MQTT topic '%s' from entity '%s'",
+            mqtt_topic,
+            lock_entity,
+        )
+    elif mqtt_topic:
+        _LOGGER.info(
+            "[async_setup_entry] Using legacy MQTT topic config: %s", mqtt_topic
+        )
+    else:
         # No config at all - shouldn't happen but handle gracefully
-        _LOGGER.error("No lock entity or MQTT topic configured")
+        _LOGGER.error("[async_setup_entry] No lock entity or MQTT topic configured!")
         return False
     
     # Ensure slot values are integers
@@ -106,17 +207,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_OVERWRITE_PROTECTION, DEFAULT_OVERWRITE_PROTECTION
         ),
     }
+    
+    _LOGGER.info(
+        "[async_setup_entry] Final config - mqtt_topic=%s, slots=%d-%d, auto_expire=%s",
+        config[CONF_MQTT_TOPIC],
+        config[CONF_SLOT_MIN],
+        config[CONF_SLOT_MAX],
+        config[CONF_AUTO_EXPIRE],
+    )
 
     # Initialize storage
+    _LOGGER.debug("[async_setup_entry] Initializing storage...")
     storage = NimlykoderStorage(hass)
     await storage.async_load()
+    _LOGGER.info("[async_setup_entry] Storage loaded with %d entries", len(storage.list_entries()))
 
     # Initialize MQTT adapter
+    _LOGGER.debug("[async_setup_entry] Initializing MQTT adapter...")
     mqtt_adapter = MqttZ2mAdapter(hass, config[CONF_MQTT_TOPIC])
 
     # Verify MQTT is available
-    if not await mqtt_adapter.verify_connection():
-        _LOGGER.warning("MQTT integration not loaded, functionality will be limited")
+    mqtt_available = await mqtt_adapter.verify_connection()
+    if not mqtt_available:
+        _LOGGER.warning(
+            "[async_setup_entry] MQTT integration not loaded! "
+            "PIN codes will NOT be sent to the lock. "
+            "Please configure MQTT in Home Assistant."
+        )
+    else:
+        _LOGGER.info("[async_setup_entry] MQTT connection verified successfully")
 
     # Store data
     hass.data.setdefault(DOMAIN, {})
@@ -129,6 +248,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Register services
+    _LOGGER.debug("[async_setup_entry] Registering services...")
     await async_setup_services(hass)
 
     # Register WebSocket handlers

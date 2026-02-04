@@ -16,6 +16,8 @@ from .const import (
     SERVICE_ADD_CODE,
     SERVICE_REMOVE_CODE,
     SERVICE_UPDATE_EXPIRY,
+    SERVICE_UPDATE_NAME,
+    SERVICE_UPDATE_PIN,
     SERVICE_LIST_CODES,
     SERVICE_CLEANUP_EXPIRED,
     TYPE_PERMANENT,
@@ -46,6 +48,20 @@ SERVICE_UPDATE_EXPIRY_SCHEMA = vol.Schema(
     {
         vol.Required("slot"): cv.positive_int,
         vol.Optional("expiry"): cv.string,
+    }
+)
+
+SERVICE_UPDATE_NAME_SCHEMA = vol.Schema(
+    {
+        vol.Required("slot"): cv.positive_int,
+        vol.Required("name"): cv.string,
+    }
+)
+
+SERVICE_UPDATE_PIN_SCHEMA = vol.Schema(
+    {
+        vol.Required("slot"): cv.positive_int,
+        vol.Required("pin_code"): cv.string,
     }
 )
 
@@ -252,6 +268,74 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         # Return as service response
         return {"codes": [entry.to_dict() for entry in entries]}
 
+    async def handle_update_name(call: ServiceCall) -> None:
+        """Handle update_name service call."""
+        _LOGGER.info("[handle_update_name] Service called with data: %s", call.data)
+        
+        data = hass.data[DOMAIN]
+        storage = data["storage"]
+
+        slot = call.data["slot"]
+        name = call.data["name"]
+
+        # Check if slot exists
+        entry = storage.get(slot)
+        if entry is None:
+            _LOGGER.error("[handle_update_name] Slot %d not found", slot)
+            raise HomeAssistantError(f"Slot {slot} not found")
+
+        # Update storage
+        try:
+            await storage.update_name(slot, name)
+            _LOGGER.info("[handle_update_name] Updated name for slot %d to '%s'", slot, name)
+        except Exception as err:
+            _LOGGER.error("[handle_update_name] Failed to update name: %s", err)
+            raise HomeAssistantError(f"Failed to update name: {err}") from err
+
+    async def handle_update_pin(call: ServiceCall) -> None:
+        """Handle update_pin service call - update PIN code for existing slot."""
+        _LOGGER.info("[handle_update_pin] Service called for slot %d", call.data["slot"])
+        
+        data = hass.data[DOMAIN]
+        storage = data["storage"]
+        mqtt_adapter = data["mqtt_adapter"]
+        config = data["config"]
+
+        slot = call.data["slot"]
+        pin_code = call.data["pin_code"]
+
+        # Check if slot exists
+        entry = storage.get(slot)
+        if entry is None:
+            _LOGGER.error("[handle_update_pin] Slot %d not found", slot)
+            raise HomeAssistantError(f"Slot {slot} not found")
+
+        # Validate PIN code is 6 digits
+        if not pin_code.isdigit() or len(pin_code) != 6:
+            _LOGGER.error("[handle_update_pin] Invalid PIN code format")
+            raise HomeAssistantError("PIN code must be exactly 6 digits")
+
+        # Send new PIN to lock via MQTT
+        _LOGGER.info(
+            "[handle_update_pin] Sending new PIN to lock for slot %d via MQTT",
+            slot,
+        )
+        try:
+            await mqtt_adapter.add_code(slot, pin_code)
+            _LOGGER.info("[handle_update_pin] Successfully updated PIN for slot %d", slot)
+        except Exception as err:
+            _LOGGER.error("[handle_update_pin] MQTT publish failed: %s", err)
+            raise HomeAssistantError(f"Failed to update PIN via MQTT: {err}") from err
+
+        # Update the 'updated' timestamp in storage
+        try:
+            # We just touch the entry to update the timestamp
+            current_entry = storage.get(slot)
+            if current_entry:
+                await storage.update_name(slot, current_entry.name)  # This updates the timestamp
+        except Exception as err:
+            _LOGGER.warning("[handle_update_pin] Failed to update timestamp: %s", err)
+
     async def handle_cleanup_expired(call: ServiceCall) -> None:
         """Handle cleanup_expired service call - manually trigger expired code cleanup."""
         _LOGGER.info("[handle_cleanup_expired] Manual cleanup triggered")
@@ -336,6 +420,20 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(
         DOMAIN,
+        SERVICE_UPDATE_NAME,
+        handle_update_name,
+        schema=SERVICE_UPDATE_NAME_SCHEMA,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UPDATE_PIN,
+        handle_update_pin,
+        schema=SERVICE_UPDATE_PIN_SCHEMA,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
         SERVICE_LIST_CODES,
         handle_list_codes,
         supports_response=True,
@@ -354,5 +452,7 @@ async def async_unload_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_ADD_CODE)
     hass.services.async_remove(DOMAIN, SERVICE_REMOVE_CODE)
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_EXPIRY)
+    hass.services.async_remove(DOMAIN, SERVICE_UPDATE_NAME)
+    hass.services.async_remove(DOMAIN, SERVICE_UPDATE_PIN)
     hass.services.async_remove(DOMAIN, SERVICE_LIST_CODES)
     hass.services.async_remove(DOMAIN, SERVICE_CLEANUP_EXPIRED)

@@ -17,6 +17,8 @@ from .const import (
     WS_TYPE_ADD,
     WS_TYPE_REMOVE,
     WS_TYPE_UPDATE_EXPIRY,
+    WS_TYPE_UPDATE_NAME,
+    WS_TYPE_UPDATE_PIN,
     WS_TYPE_SUGGEST_SLOTS,
     WS_TYPE_CONFIG,
     WS_TYPE_TRANSLATIONS,
@@ -36,6 +38,8 @@ def async_register_websocket_handlers(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, handle_add)
     websocket_api.async_register_command(hass, handle_remove)
     websocket_api.async_register_command(hass, handle_update_expiry)
+    websocket_api.async_register_command(hass, handle_update_name)
+    websocket_api.async_register_command(hass, handle_update_pin)
     websocket_api.async_register_command(hass, handle_suggest_slots)
     websocket_api.async_register_command(hass, handle_config)
     websocket_api.async_register_command(hass, handle_translations)
@@ -280,6 +284,109 @@ async def handle_update_expiry(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): WS_TYPE_UPDATE_NAME,
+        vol.Required("slot"): int,
+        vol.Required("name"): str,
+    }
+)
+@websocket_api.async_response
+async def handle_update_name(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle update_name command."""
+    try:
+        data = hass.data[DOMAIN]
+        storage = data["storage"]
+
+        slot = msg["slot"]
+        name = msg["name"]
+
+        if not name or not name.strip():
+            connection.send_error(msg["id"], "invalid_input", "Name cannot be empty")
+            return
+
+        # Check if slot exists
+        entry = storage.get(slot)
+        if entry is None:
+            connection.send_error(msg["id"], "not_found", f"Slot {slot} not found")
+            return
+
+        # Update storage
+        try:
+            entry = await storage.update_name(slot, name)
+            _LOGGER.info("Updated name for slot %s to '%s'", slot, name)
+            connection.send_result(msg["id"], {"entry": entry.to_dict()})
+        except Exception as err:
+            connection.send_error(msg["id"], "update_failed", str(err))
+
+    except Exception as err:
+        _LOGGER.error("Error updating name: %s", err)
+        connection.send_error(msg["id"], "update_failed", str(err))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_TYPE_UPDATE_PIN,
+        vol.Required("slot"): int,
+        vol.Required("pin_code"): str,
+    }
+)
+@websocket_api.async_response
+async def handle_update_pin(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Handle update_pin command - update PIN code for existing slot."""
+    try:
+        data = hass.data[DOMAIN]
+        storage = data["storage"]
+        mqtt_adapter = data["mqtt_adapter"]
+
+        slot = msg["slot"]
+        pin_code = msg["pin_code"]
+
+        # Check if slot exists
+        entry = storage.get(slot)
+        if entry is None:
+            connection.send_error(msg["id"], "not_found", f"Slot {slot} not found")
+            return
+
+        # Validate PIN code is 6 digits
+        if not pin_code.isdigit() or len(pin_code) != 6:
+            connection.send_error(
+                msg["id"], "invalid_input", "PIN code must be exactly 6 digits"
+            )
+            return
+
+        # Send new PIN to lock via MQTT
+        _LOGGER.info("Updating PIN for slot %s via MQTT", slot)
+        try:
+            await mqtt_adapter.add_code(slot, pin_code)
+        except Exception as err:
+            connection.send_error(
+                msg["id"], "mqtt_error", f"Failed to update PIN via MQTT: {err}"
+            )
+            return
+
+        # Update the 'updated' timestamp in storage
+        try:
+            entry = await storage.update_name(slot, entry.name)  # This updates the timestamp
+        except Exception as err:
+            _LOGGER.warning("Failed to update timestamp: %s", err)
+
+        _LOGGER.info("Successfully updated PIN for slot %s", slot)
+        connection.send_result(msg["id"], {"success": True, "entry": entry.to_dict()})
+
+    except Exception as err:
+        _LOGGER.error("Error updating PIN: %s", err)
+        connection.send_error(msg["id"], "update_failed", str(err))
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): WS_TYPE_SUGGEST_SLOTS,
         vol.Optional("count", default=5): int,
     }
@@ -367,12 +474,17 @@ async def handle_translations(
 
         # Try to load the user's language, fallback to English
         translation_file = translations_dir / f"{language}.json"
-        if not translation_file.exists():
-            translation_file = translations_dir / "en.json"
 
-        # Load the translation file
-        with open(translation_file, "r", encoding="utf-8") as f:
-            translations = json.load(f)
+        def _load_translations() -> dict:
+            """Load translations from file (runs in executor to avoid blocking)."""
+            file_to_load = translation_file
+            if not file_to_load.exists():
+                file_to_load = translations_dir / "en.json"
+            with open(file_to_load, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        # Run file I/O in executor to avoid blocking the event loop
+        translations = await hass.async_add_executor_job(_load_translations)
 
         # Extract panel translations
         panel_translations = translations.get("panel", {})

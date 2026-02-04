@@ -151,7 +151,7 @@
     },
     "dialog": {
       "add_title": "Add New Person",
-      "edit_title": "Edit",
+      "edit_title": "Edit Person",
       "remove_title": "Remove Person",
       "confirm_remove": "Are you sure you want to remove",
       "remove_description": "This will delete the PIN code from slot {slot} and remove it from the lock.",
@@ -160,6 +160,13 @@
       "pin_code": "PIN Code",
       "pin_placeholder": "6 digits",
       "pin_hint": "Enter a 6 digit PIN code",
+      "change_pin": "Change PIN Code",
+      "pin_change_warning": "Leave empty to keep the current PIN code",
+      "confirm_pin_change": "Confirm PIN Change",
+      "pin_warning_title": "Warning: Irreversible Action",
+      "pin_warning_message": "Changing the PIN code will permanently replace the old code. There is no way to retrieve the previous PIN code.",
+      "pin_confirm_question": "Are you sure you want to change the PIN code for {name}?",
+      "confirm_change": "Yes, Change PIN",
       "type": "Type",
       "expiry": "Expiry Date",
       "expiry_hint": "Leave empty for no expiry (permanent access)",
@@ -173,6 +180,10 @@
       "save": "Save Changes",
       "add": "Add Person",
       "remove": "Remove"
+    },
+    "errors": {
+      "name_required": "Name is required",
+      "pin_invalid": "PIN code must be exactly 6 digits"
     },
     "empty": {
       "title": "No PIN codes yet",

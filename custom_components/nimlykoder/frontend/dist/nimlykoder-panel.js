@@ -18,12 +18,15 @@ class NimlykoderPanel extends LitElement {
             showAddDialog: { type: Boolean },
             showEditDialog: { type: Boolean },
             showRemoveDialog: { type: Boolean },
+            showPinConfirmDialog: { type: Boolean },
             editingCode: { type: Object },
+            editFormError: { type: String },
             removingCode: { type: Object },
             config: { type: Object },
             showExpiredInfo: { type: Boolean },
             suggestedSlot: { type: Number },
             translations: { type: Object },
+            pendingPinUpdate: { type: Object },
         };
     }
 
@@ -36,12 +39,15 @@ class NimlykoderPanel extends LitElement {
         this.showAddDialog = false;
         this.showEditDialog = false;
         this.showRemoveDialog = false;
+        this.showPinConfirmDialog = false;
         this.editingCode = null;
+        this.editFormError = null;
         this.removingCode = null;
         this.config = { auto_expire: true, cleanup_time: "03:00:00" };
         this.showExpiredInfo = false;
         this.suggestedSlot = null;
         this.translations = this._defaultTranslations();
+        this.pendingPinUpdate = null;
     }
 
     // Default English translations (fallback)
@@ -68,7 +74,7 @@ class NimlykoderPanel extends LitElement {
             },
             dialog: {
                 add_title: "Add New Person",
-                edit_title: "Edit",
+                edit_title: "Edit Person",
                 remove_title: "Remove Person",
                 confirm_remove: "Are you sure you want to remove",
                 remove_description: "This will delete the PIN code from slot {slot} and remove it from the lock.",
@@ -77,6 +83,13 @@ class NimlykoderPanel extends LitElement {
                 pin_code: "PIN Code",
                 pin_placeholder: "6 digits",
                 pin_hint: "Enter a 6 digit PIN code",
+                change_pin: "Change PIN Code",
+                pin_change_warning: "Leave empty to keep the current PIN code",
+                confirm_pin_change: "Confirm PIN Change",
+                pin_warning_title: "Warning: Irreversible Action",
+                pin_warning_message: "Changing the PIN code will permanently replace the old code. There is no way to retrieve the previous PIN code.",
+                pin_confirm_question: "Are you sure you want to change the PIN code for {name}?",
+                confirm_change: "Yes, Change PIN",
                 type: "Type",
                 expiry: "Expiry Date",
                 expiry_hint: "Leave empty for no expiry (permanent access)",
@@ -87,6 +100,10 @@ class NimlykoderPanel extends LitElement {
                 save: "Save Changes",
                 add: "Add Person",
                 remove: "Remove",
+            },
+            errors: {
+                name_required: "Name is required",
+                pin_invalid: "PIN code must be exactly 6 digits",
             },
             empty: {
                 title: "No PIN codes yet",
@@ -691,6 +708,11 @@ class NimlykoderPanel extends LitElement {
                 color: var(--text-secondary);
             }
 
+            .form-group .field-error {
+                color: #c62828;
+                font-weight: 500;
+            }
+
             .form-row {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -900,6 +922,7 @@ class NimlykoderPanel extends LitElement {
                 ${this.showAddDialog ? this._renderAddDialog() : ""}
                 ${this.showEditDialog ? this._renderEditDialog() : ""}
                 ${this.showRemoveDialog ? this._renderRemoveDialog() : ""}
+                ${this.showPinConfirmDialog ? this._renderPinConfirmDialog() : ""}
             </div>
         `;
     }
@@ -1181,7 +1204,7 @@ class NimlykoderPanel extends LitElement {
             <div class="dialog-overlay" @click=${this._closeEditDialog}>
                 <div class="dialog" @click=${(e) => e.stopPropagation()}>
                     <div class="dialog-header">
-                        <h2>${this.t('dialog.edit_title')} ${this.editingCode.name}</h2>
+                        <h2>${this.t('dialog.edit_title')}</h2>
                         <button class="btn btn-icon btn-text" @click=${this._closeEditDialog}>
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
@@ -1189,6 +1212,12 @@ class NimlykoderPanel extends LitElement {
                         </button>
                     </div>
                     <div class="dialog-content">
+                        <div class="form-group">
+                            <label for="edit-name">${this.t('dialog.name')}</label>
+                            <input type="text" id="edit-name" .value=${this.editingCode.name} placeholder="${this.t('dialog.name_placeholder')}" @input=${() => this.editFormError = null} />
+                            ${this.editFormError === 'name_required' ? html`<small class="field-error">${this.t('errors.name_required')}</small>` : ''}
+                        </div>
+                        
                         ${isGuest ? html`
                             <div class="form-group">
                                 <label for="edit-expiry">${this.t('dialog.expiry')}</label>
@@ -1196,14 +1225,48 @@ class NimlykoderPanel extends LitElement {
                                 <small>${this.t('dialog.expiry_hint')}</small>
                             </div>
                         ` : html`
-                            <p style="color: var(--text-secondary);">${this.t('dialog.permanent_no_expiry')}</p>
+                            <p style="color: var(--text-secondary); margin-bottom: 16px;">${this.t('dialog.permanent_no_expiry')}</p>
                         `}
+                        
+                        <div class="form-group" style="border-top: 1px solid var(--divider); padding-top: 16px; margin-top: 16px;">
+                            <label for="edit-pin">${this.t('dialog.change_pin')}</label>
+                            <input type="text" id="edit-pin" placeholder="${this.t('dialog.pin_placeholder')}" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" @input=${() => this.editFormError = null} />
+                            <small style="color: var(--warning-color, #ff9800);">${this.t('dialog.pin_change_warning')}</small>
+                            ${this.editFormError === 'pin_invalid' ? html`<small class="field-error">${this.t('errors.pin_invalid')}</small>` : ''}
+                        </div>
                     </div>
                     <div class="dialog-actions">
                         <button class="btn btn-secondary" @click=${this._closeEditDialog}>${this.t('dialog.cancel')}</button>
-                        ${isGuest ? html`
-                            <button class="btn btn-primary" @click=${this._handleEditSubmit}>${this.t('dialog.save')}</button>
-                        ` : ''}
+                        <button class="btn btn-primary" @click=${this._handleEditSubmit}>${this.t('dialog.save')}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderPinConfirmDialog() {
+        if (!this.showPinConfirmDialog || !this.pendingPinUpdate) return "";
+        return html`
+            <div class="dialog-overlay" @click=${this._closePinConfirmDialog}>
+                <div class="dialog" @click=${(e) => e.stopPropagation()}>
+                    <div class="dialog-header">
+                        <h2>${this.t('dialog.confirm_pin_change')}</h2>
+                        <button class="btn btn-icon btn-text" @click=${this._closePinConfirmDialog}>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="dialog-content">
+                        <div style="background: var(--warning-color, #ff9800); color: white; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <strong>⚠️ ${this.t('dialog.pin_warning_title')}</strong>
+                            <p style="margin: 8px 0 0 0;">${this.t('dialog.pin_warning_message')}</p>
+                        </div>
+                        <p>${this.t('dialog.pin_confirm_question', { name: this.pendingPinUpdate.name })}</p>
+                    </div>
+                    <div class="dialog-actions">
+                        <button class="btn btn-secondary" @click=${this._closePinConfirmDialog}>${this.t('dialog.cancel')}</button>
+                        <button class="btn btn-primary" style="background: var(--warning-color, #ff9800);" @click=${this._confirmPinUpdate}>${this.t('dialog.confirm_change')}</button>
                     </div>
                 </div>
             </div>
@@ -1268,6 +1331,7 @@ class NimlykoderPanel extends LitElement {
     _closeEditDialog() {
         this.showEditDialog = false;
         this.editingCode = null;
+        this.editFormError = null;
     }
 
     _closeRemoveDialog() {
@@ -1314,15 +1378,80 @@ class NimlykoderPanel extends LitElement {
     }
 
     async _handleEditSubmit() {
-        const expiry = this.shadowRoot.getElementById("edit-expiry").value;
+        const name = this.shadowRoot.getElementById("edit-name").value;
+        const expiryEl = this.shadowRoot.getElementById("edit-expiry");
+        const expiry = expiryEl ? expiryEl.value : null;
+        const newPin = this.shadowRoot.getElementById("edit-pin").value.trim();
+
+        if (!name || !name.trim()) {
+            this.editFormError = 'name_required';
+            return;
+        }
+
+        // Validate PIN: must be empty or exactly 6 digits
+        if (newPin && !/^[0-9]{6}$/.test(newPin)) {
+            this.editFormError = 'pin_invalid';
+            return;
+        }
+
+        try {
+            // Update name if changed
+            if (name !== this.editingCode.name) {
+                await this.hass.callWS({
+                    type: "nimlykoder/update_name",
+                    slot: this.editingCode.slot,
+                    name: name.trim(),
+                });
+            }
+
+            // Update expiry for guest codes
+            if (this.editingCode.type === 'guest') {
+                const currentExpiry = this.editingCode.expiry || "";
+                if (expiry !== currentExpiry) {
+                    await this.hass.callWS({
+                        type: "nimlykoder/update_expiry",
+                        slot: this.editingCode.slot,
+                        expiry: expiry || null,
+                    });
+                }
+            }
+
+            // If PIN is entered and valid, show confirmation dialog
+            if (newPin) {
+                this.pendingPinUpdate = {
+                    slot: this.editingCode.slot,
+                    name: name.trim(),
+                    pin_code: newPin,
+                };
+                this.showEditDialog = false;
+                this.showPinConfirmDialog = true;
+                return;
+            }
+
+            this.showEditDialog = false;
+            this.editingCode = null;
+            await this.loadCodes();
+        } catch (err) {
+            this.error = err.message;
+        }
+    }
+
+    _closePinConfirmDialog() {
+        this.showPinConfirmDialog = false;
+        this.pendingPinUpdate = null;
+    }
+
+    async _confirmPinUpdate() {
+        if (!this.pendingPinUpdate) return;
 
         try {
             await this.hass.callWS({
-                type: "nimlykoder/update_expiry",
-                slot: this.editingCode.slot,
-                expiry: expiry || null,
+                type: "nimlykoder/update_pin",
+                slot: this.pendingPinUpdate.slot,
+                pin_code: this.pendingPinUpdate.pin_code,
             });
-            this.showEditDialog = false;
+            this.showPinConfirmDialog = false;
+            this.pendingPinUpdate = null;
             this.editingCode = null;
             await this.loadCodes();
         } catch (err) {

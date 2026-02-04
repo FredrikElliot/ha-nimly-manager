@@ -85,6 +85,50 @@ update_expiry:
       selector:
         date:
 
+update_name:
+  name: Update Name
+  description: Update the name of a code entry
+  fields:
+    slot:
+      name: Slot Number
+      description: Slot number to update
+      required: true
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+    name:
+      name: Name
+      description: New name for this code
+      required: true
+      example: "John Doe"
+      selector:
+        text:
+
+update_pin:
+  name: Update PIN Code
+  description: Update the PIN code for an existing slot. Warning - this is irreversible and the old PIN cannot be retrieved.
+  fields:
+    slot:
+      name: Slot Number
+      description: Slot number to update
+      required: true
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+    pin_code:
+      name: New PIN Code
+      description: New 6-digit PIN code
+      required: true
+      example: "654321"
+      selector:
+        text:
+
 list_codes:
   name: List Codes
   description: List all PIN codes

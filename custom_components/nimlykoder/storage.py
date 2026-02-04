@@ -136,6 +136,21 @@ class NimlykoderStorage:
 
         return CodeEntry.from_dict(slot, self._data[slot_str])
 
+    async def update_name(self, slot: int, name: str) -> CodeEntry:
+        """Update name for a code entry."""
+        slot_str = str(slot)
+        if slot_str not in self._data:
+            raise HomeAssistantError(f"Slot {slot} not found")
+
+        if not name or not name.strip():
+            raise HomeAssistantError("Name cannot be empty")
+
+        self._data[slot_str]["name"] = name.strip()
+        self._data[slot_str]["updated"] = datetime.now().isoformat()
+        await self.async_save()
+
+        return CodeEntry.from_dict(slot, self._data[slot_str])
+
     def find_first_free_slot(
         self, slot_min: int, slot_max: int, reserved_slots: list[int]
     ) -> int | None:

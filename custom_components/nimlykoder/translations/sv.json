@@ -151,7 +151,7 @@
     },
     "dialog": {
       "add_title": "Lägg till ny person",
-      "edit_title": "Redigera",
+      "edit_title": "Redigera person",
       "remove_title": "Ta bort person",
       "confirm_remove": "Är du säker på att du vill ta bort",
       "remove_description": "Detta tar bort PIN-koden från plats {slot} och raderar den från låset.",
@@ -160,6 +160,13 @@
       "pin_code": "PIN-kod",
       "pin_placeholder": "6 siffror",
       "pin_hint": "Ange en 6-siffrig PIN-kod",
+      "change_pin": "Ändra PIN-kod",
+      "pin_change_warning": "Lämna tomt för att behålla nuvarande PIN-kod",
+      "confirm_pin_change": "Bekräfta ändring av PIN",
+      "pin_warning_title": "Varning: Oåterkallelig åtgärd",
+      "pin_warning_message": "Att ändra PIN-koden kommer permanent ersätta den gamla koden. Det finns inget sätt att återställa den tidigare PIN-koden.",
+      "pin_confirm_question": "Är du säker på att du vill ändra PIN-koden för {name}?",
+      "confirm_change": "Ja, ändra PIN",
       "type": "Typ",
       "expiry": "Utgångsdatum",
       "expiry_hint": "Lämna tomt för ingen utgång (permanent åtkomst)",
@@ -173,6 +180,10 @@
       "save": "Spara ändringar",
       "add": "Lägg till person",
       "remove": "Ta bort"
+    },
+    "errors": {
+      "name_required": "Namn krävs",
+      "pin_invalid": "PIN-koden måste vara exakt 6 siffror"
     },
     "empty": {
       "title": "Inga PIN-koder ännu",

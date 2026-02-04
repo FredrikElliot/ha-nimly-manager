@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Set to True to enable actual MQTT communication
 # Set to False for development/testing without MQTT
-MQTT_ENABLED = False
+MQTT_ENABLED = True
 
 
 class MqttZ2mAdapter:

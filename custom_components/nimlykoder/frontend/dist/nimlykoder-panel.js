@@ -140,55 +140,154 @@ class NimlykoderPanel extends LitElement {
                 --bg: var(--primary-background-color, #fafafa);
             }
 
+            /* Top App Bar - Home Assistant style */
+            .app-header {
+                background-color: var(--app-header-background-color, var(--primary-color));
+                color: var(--app-header-text-color, var(--text-primary-color, #fff));
+                display: flex;
+                align-items: center;
+                height: 56px;
+                padding: 0 4px;
+                box-sizing: border-box;
+                position: sticky;
+                top: 0;
+                z-index: 4;
+            }
+
+            .menu-btn {
+                width: 48px;
+                height: 48px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: inherit;
+                border-radius: 50%;
+                margin: 0 4px;
+            }
+
+            .menu-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            .menu-btn svg {
+                width: 24px;
+                height: 24px;
+            }
+
+            .app-header-title {
+                font-size: 20px;
+                font-weight: 400;
+                margin-left: 8px;
+                flex: 1;
+            }
+
             .container {
                 max-width: 1200px;
                 margin: 0 auto;
                 padding: 16px;
             }
 
-            /* Header */
-            .header {
+            /* Lock Status Bar */
+            .lock-status-bar {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
-                margin-bottom: 24px;
-                flex-wrap: wrap;
-                gap: 16px;
+                gap: 12px;
+                padding: 12px 16px;
+                background: var(--card-bg);
+                border-radius: 12px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             }
 
-            .header-left {
-                display: flex;
-                align-items: center;
-                gap: 16px;
-            }
-
-            .header-icon {
-                width: 48px;
-                height: 48px;
+            .lock-status-icon {
+                width: 40px;
+                height: 40px;
                 border-radius: 50%;
-                background: var(--primary-color);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: white;
+                flex-shrink: 0;
             }
 
-            .header-icon svg {
-                width: 28px;
-                height: 28px;
+            .lock-status-icon.locked {
+                background: rgba(76, 175, 80, 0.15);
+                color: #4caf50;
             }
 
-            .header-title h1 {
-                margin: 0;
-                font-size: 24px;
+            .lock-status-icon.unlocked {
+                background: rgba(255, 152, 0, 0.15);
+                color: #ff9800;
+            }
+
+            .lock-status-icon.unknown {
+                background: rgba(158, 158, 158, 0.15);
+                color: #9e9e9e;
+            }
+
+            .lock-status-icon svg {
+                width: 24px;
+                height: 24px;
+            }
+
+            .lock-status-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .lock-status-name {
+                font-size: 16px;
                 font-weight: 500;
                 color: var(--text-primary);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
-            .header-title p {
-                margin: 4px 0 0 0;
-                font-size: 14px;
+            .lock-status-state {
+                font-size: 13px;
                 color: var(--text-secondary);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .lock-status-state .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+            }
+
+            .lock-status-state .dot.locked {
+                background: #4caf50;
+            }
+
+            .lock-status-state .dot.unlocked {
+                background: #ff9800;
+            }
+
+            .lock-status-state .dot.unknown {
+                background: #9e9e9e;
+            }
+
+            .lock-status-slots {
+                text-align: right;
+                flex-shrink: 0;
+            }
+
+            .lock-status-slots-count {
+                font-size: 20px;
+                font-weight: 600;
+                color: var(--primary-color);
+            }
+
+            .lock-status-slots-label {
+                font-size: 11px;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
 
             /* Search and Actions Bar */
@@ -909,12 +1008,13 @@ class NimlykoderPanel extends LitElement {
 
     render() {
         return html`
+            ${this._renderAppHeader()}
             <div class="container">
-                ${this._renderHeader()}
                 ${this.error ? this._renderError() : ""}
                 ${this.loading
                     ? this._renderLoading()
                     : html`
+                          ${this._renderLockStatus()}
                           ${this._renderStats()}
                           ${this._renderToolbar()}
                           ${this._renderPersonList()}
@@ -927,19 +1027,60 @@ class NimlykoderPanel extends LitElement {
         `;
     }
 
-    _renderHeader() {
+    _renderAppHeader() {
         return html`
-            <div class="header">
-                <div class="header-left">
-                    <div class="header-icon">
+            <div class="app-header">
+                <button class="menu-btn" @click=${this._toggleMenu} aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/>
+                    </svg>
+                </button>
+                <div class="app-header-title">${this.t('title')}</div>
+            </div>
+        `;
+    }
+
+    _toggleMenu() {
+        this.dispatchEvent(new CustomEvent('hass-toggle-menu', {
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    _renderLockStatus() {
+        const lockEntityId = this.config?.lock_entity || '';
+        const lockState = this.hass?.states?.[lockEntityId];
+        const lockName = lockState?.attributes?.friendly_name || lockEntityId.split('.').pop() || 'Lock';
+        const state = lockState?.state || 'unknown';
+        const isLocked = state === 'locked';
+        const isUnlocked = state === 'unlocked';
+        const stateClass = isLocked ? 'locked' : isUnlocked ? 'unlocked' : 'unknown';
+        const stateText = isLocked ? 'Locked' : isUnlocked ? 'Unlocked' : 'Unknown';
+        const availableSlots = (this.config?.slot_max || 99) - (this.config?.slot_min || 0) + 1 - this.codes.length;
+
+        return html`
+            <div class="lock-status-bar">
+                <div class="lock-status-icon ${stateClass}">
+                    ${isLocked ? html`
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/>
                         </svg>
+                    ` : html`
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10A2,2 0 0,1 6,8H15V6A3,3 0 0,0 12,3A3,3 0 0,0 9,6H7A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,17A2,2 0 0,0 14,15A2,2 0 0,0 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17Z"/>
+                        </svg>
+                    `}
+                </div>
+                <div class="lock-status-info">
+                    <div class="lock-status-name">${lockName}</div>
+                    <div class="lock-status-state">
+                        <span class="dot ${stateClass}"></span>
+                        ${stateText}
                     </div>
-                    <div class="header-title">
-                        <h1>${this.t('title')}</h1>
-                        <p>${this.t('subtitle')}</p>
-                    </div>
+                </div>
+                <div class="lock-status-slots">
+                    <div class="lock-status-slots-count">${availableSlots}</div>
+                    <div class="lock-status-slots-label">Slots available</div>
                 </div>
             </div>
         `;

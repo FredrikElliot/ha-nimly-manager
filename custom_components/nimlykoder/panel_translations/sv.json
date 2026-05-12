@@ -1,0 +1,91 @@
+{
+  "title": "Nimlykoder",
+  "subtitle": "Hantera PIN-koder för ditt Nimly-lås",
+  "add_code": "Lägg till kod",
+  "search_placeholder": "Sök på namn, plats eller typ...",
+  "stats": {
+    "total": "Totalt antal",
+    "permanent": "Permanenta",
+    "guest": "Gäster",
+    "expired": "Utgångna"
+  },
+  "table": {
+    "slot": "Plats",
+    "name": "Namn",
+    "type": "Typ",
+    "expiry": "Utgång",
+    "status": "Status",
+    "actions": "Åtgärder"
+  },
+  "status": {
+    "active": "Aktiv",
+    "expired": "Utgången",
+    "reserved": "Reserverad"
+  },
+  "type": {
+    "permanent": "Permanent",
+    "guest": "Gäst"
+  },
+  "dialog": {
+    "add_title": "Lägg till ny person",
+    "edit_title": "Redigera person",
+    "remove_title": "Ta bort person",
+    "confirm_remove": "Är du säker på att du vill ta bort",
+    "remove_description": "Detta tar bort PIN-koden från plats {slot} och raderar den från låset.",
+    "name": "Namn",
+    "name_placeholder": "t.ex. Johan Andersson",
+    "pin_code": "PIN-kod",
+    "pin_placeholder": "6 siffror",
+    "pin_hint": "Ange en 6-siffrig PIN-kod",
+    "change_pin": "Ändra PIN-kod",
+    "pin_change_warning": "Lämna tomt för att behålla nuvarande PIN-kod",
+    "confirm_pin_change": "Bekräfta ändring av PIN",
+    "pin_warning_title": "Varning: Oåterkallelig åtgärd",
+    "pin_warning_message": "Att ändra PIN-koden kommer permanent ersätta den gamla koden. Det finns inget sätt att återställa den tidigare PIN-koden.",
+    "pin_confirm_question": "Är du säker på att du vill ändra PIN-koden för {name}?",
+    "confirm_change": "Ja, ändra PIN",
+    "type": "Typ",
+    "expiry": "Utgångsdatum",
+    "expiry_hint": "Lämna tomt för ingen utgång (permanent åtkomst)",
+    "permanent_no_expiry": "Permanenta koder har inget utgångsdatum.",
+    "slot": "Plats",
+    "next_available": "Nästa lediga",
+    "suggested_slot": "Föreslagen plats",
+    "advanced": "Avancerat",
+    "preferred_slot": "Föredragen plats",
+    "cancel": "Avbryt",
+    "save": "Spara ändringar",
+    "add": "Lägg till person",
+    "remove": "Ta bort"
+  },
+  "errors": {
+    "name_required": "Namn krävs",
+    "pin_invalid": "PIN-koden måste vara exakt 6 siffror"
+  },
+  "empty": {
+    "title": "Inga PIN-koder ännu",
+    "description": "Lägg till din första person för att komma igång med Nimlykoder",
+    "add_first": "Lägg till första personen"
+  },
+  "no_results": {
+    "title": "Inga resultat hittades",
+    "description": "Prova ett annat sökord"
+  },
+  "loading": "Laddar koder...",
+  "retry": "Försök igen",
+  "expires": "Utgår",
+  "expired_on": "Utgick",
+  "slot_label": "Plats",
+  "expired_info": {
+    "title": "Utgångna koder",
+    "description": "Utgångna koder har passerat sitt utgångsdatum och är inte längre giltiga för inträde.",
+    "auto_cleanup": "Automatisk rensning är aktiverad. Utgångna koder tas automatiskt bort kl. {time}.",
+    "manual_cleanup": "Automatisk rensning är inaktiverad. Ta bort utgångna koder manuellt."
+  },
+  "messages": {
+    "code_added": "Kod tillagd",
+    "code_removed": "Kod borttagen",
+    "code_updated": "Kod uppdaterad",
+    "error": "Ett fel uppstod: {error}"
+  }
+}

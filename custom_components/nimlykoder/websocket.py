@@ -469,8 +469,8 @@ async def handle_translations(
         # Get user's language from hass config
         language = hass.config.language or "en"
 
-        # Path to translations directory
-        translations_dir = Path(__file__).parent / "translations"
+        # Path to panel translation overrides
+        translations_dir = Path(__file__).parent / "panel_translations"
 
         # Try to load the user's language, fallback to English
         translation_file = translations_dir / f"{language}.json"
@@ -486,8 +486,8 @@ async def handle_translations(
         # Run file I/O in executor to avoid blocking the event loop
         translations = await hass.async_add_executor_job(_load_translations)
 
-        # Extract panel translations
-        panel_translations = translations.get("panel", {})
+        # Keep support for both direct panel dictionaries and legacy nested format
+        panel_translations = translations.get("panel", translations)
 
         connection.send_result(
             msg["id"],

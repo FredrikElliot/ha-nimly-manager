@@ -487,7 +487,12 @@ async def handle_translations(
         translations = await hass.async_add_executor_job(_load_translations)
 
         # Keep support for both direct panel dictionaries and legacy nested format
-        panel_translations = translations.get("panel", translations)
+        if isinstance(translations.get("panel"), dict):
+            panel_translations = translations["panel"]
+        elif isinstance(translations, dict) and "title" in translations:
+            panel_translations = translations
+        else:
+            panel_translations = {}
 
         connection.send_result(
             msg["id"],

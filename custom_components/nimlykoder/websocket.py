@@ -29,6 +29,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+PANEL_TRANSLATION_KEYS = frozenset({"title", "subtitle", "add_code"})
 
 
 @callback
@@ -491,7 +492,7 @@ async def handle_translations(
             panel_translations = translations["panel"]
         elif (
             isinstance(translations, dict)
-            and {"title", "subtitle", "add_code"}.issubset(translations)
+            and PANEL_TRANSLATION_KEYS.issubset(translations)
         ):
             panel_translations = translations
         else:

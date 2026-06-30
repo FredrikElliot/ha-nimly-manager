@@ -12,7 +12,8 @@
           "reserved_slots": "Reserved Slots (comma separated)",
           "auto_expire": "Enable Automatic Expiry Cleanup",
           "cleanup_time": "Daily Cleanup Time",
-          "overwrite_protection": "Enable Overwrite Protection"
+          "overwrite_protection": "Enable Overwrite Protection",
+          "pin_length": "PIN Code Length"
         },
         "data_description": {
           "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
@@ -21,7 +22,8 @@
           "reserved_slots": "Slots reserved for permanent codes (e.g., family members). Enter slot numbers separated by commas.",
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
-          "overwrite_protection": "Prevent accidental overwriting of existing codes"
+          "overwrite_protection": "Prevent accidental overwriting of existing codes",
+          "pin_length": "Number of digits required for PIN codes. Choose 4 for 4-digit PINs or 6 for 6-digit PINs (default)."
         }
       }
     },
@@ -44,7 +46,8 @@
           "reserved_slots": "Reserved Slots (comma separated)",
           "auto_expire": "Enable Automatic Expiry Cleanup",
           "cleanup_time": "Daily Cleanup Time",
-          "overwrite_protection": "Enable Overwrite Protection"
+          "overwrite_protection": "Enable Overwrite Protection",
+          "pin_length": "PIN Code Length"
         },
         "data_description": {
           "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
@@ -53,7 +56,8 @@
           "reserved_slots": "Slots reserved for permanent codes (e.g., family members). Enter slot numbers separated by commas.",
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
-          "overwrite_protection": "Prevent accidental overwriting of existing codes"
+          "overwrite_protection": "Prevent accidental overwriting of existing codes",
+          "pin_length": "Number of digits required for PIN codes. Choose 4 for 4-digit PINs or 6 for 6-digit PINs (default)."
         }
       }
     },

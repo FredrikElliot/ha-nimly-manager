@@ -12,7 +12,8 @@
           "reserved_slots": "Reserverade Platser (kommaseparerade)",
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
           "cleanup_time": "Daglig Rensningstid",
-          "overwrite_protection": "Aktivera Överskrivningsskydd"
+          "overwrite_protection": "Aktivera Överskrivningsskydd",
+          "pin_length": "PIN-kodens längd"
         },
         "data_description": {
           "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
@@ -21,7 +22,8 @@
           "reserved_slots": "Platser reserverade för permanenta koder (t.ex. familjemedlemmar). Ange platsnummer separerade med komma.",
           "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
           "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
-          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder"
+          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder",
+          "pin_length": "Antal siffror som krävs för PIN-koder. Välj 4 för 4-siffriga PIN-koder eller 6 för 6-siffriga PIN-koder (standard)."
         }
       }
     },
@@ -44,7 +46,8 @@
           "reserved_slots": "Reserverade Platser (kommaseparerade)",
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
           "cleanup_time": "Daglig Rensningstid",
-          "overwrite_protection": "Aktivera Överskrivningsskydd"
+          "overwrite_protection": "Aktivera Överskrivningsskydd",
+          "pin_length": "PIN-kodens längd"
         },
         "data_description": {
           "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
@@ -53,7 +56,8 @@
           "reserved_slots": "Platser reserverade för permanenta koder (t.ex. familjemedlemmar). Ange platsnummer separerade med komma.",
           "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
           "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
-          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder"
+          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder",
+          "pin_length": "Antal siffror som krävs för PIN-koder. Välj 4 för 4-siffriga PIN-koder eller 6 för 6-siffriga PIN-koder (standard)."
         }
       }
     },

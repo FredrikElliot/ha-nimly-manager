@@ -13,6 +13,8 @@ import homeassistant.helpers.config_validation as cv
 from .const import (
     DOMAIN,
     CONF_MQTT_TOPIC,
+    CONF_PIN_LENGTH,
+    DEFAULT_PIN_LENGTH,
     SERVICE_ADD_CODE,
     SERVICE_REMOVE_CODE,
     SERVICE_UPDATE_EXPIRY,
@@ -94,10 +96,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             force,
         )
 
-        # Validate PIN code is 6 digits
-        if not pin_code.isdigit() or len(pin_code) != 6:
-            _LOGGER.error("[handle_add_code] Invalid PIN code: must be exactly 6 digits")
-            raise HomeAssistantError("PIN code must be exactly 6 digits")
+        # Validate PIN code length matches configured pin_length
+        pin_length = config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
+        if not pin_code.isdigit() or len(pin_code) != pin_length:
+            _LOGGER.error("[handle_add_code] Invalid PIN code: must be exactly %d digits", pin_length)
+            raise HomeAssistantError(f"PIN code must be exactly {pin_length} digits")
 
         # Policy enforcement
         if code_type == TYPE_GUEST and not expiry:
@@ -310,10 +313,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("[handle_update_pin] Slot %d not found", slot)
             raise HomeAssistantError(f"Slot {slot} not found")
 
-        # Validate PIN code is 6 digits
-        if not pin_code.isdigit() or len(pin_code) != 6:
+        # Validate PIN code length matches configured pin_length
+        pin_length = config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
+        if not pin_code.isdigit() or len(pin_code) != pin_length:
             _LOGGER.error("[handle_update_pin] Invalid PIN code format")
-            raise HomeAssistantError("PIN code must be exactly 6 digits")
+            raise HomeAssistantError(f"PIN code must be exactly {pin_length} digits")
 
         # Send new PIN to lock via MQTT
         _LOGGER.info(

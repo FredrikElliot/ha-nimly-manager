@@ -26,6 +26,8 @@ from .const import (
     TYPE_GUEST,
     CONF_AUTO_EXPIRE,
     CONF_CLEANUP_TIME,
+    CONF_PIN_LENGTH,
+    DEFAULT_PIN_LENGTH,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,10 +105,11 @@ async def handle_add(
         preferred_slot = msg.get("slot")
         force = msg.get("force", False)
 
-        # Validate PIN code is 6 digits
-        if not pin_code.isdigit() or len(pin_code) != 6:
+        # Validate PIN code length matches configured pin_length
+        pin_length = config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
+        if not pin_code.isdigit() or len(pin_code) != pin_length:
             connection.send_error(
-                msg["id"], "invalid_input", "PIN code must be exactly 6 digits"
+                msg["id"], "invalid_input", f"PIN code must be exactly {pin_length} digits"
             )
             return
 
@@ -345,6 +348,7 @@ async def handle_update_pin(
         data = hass.data[DOMAIN]
         storage = data["storage"]
         mqtt_adapter = data["mqtt_adapter"]
+        config = data["config"]
 
         slot = msg["slot"]
         pin_code = msg["pin_code"]
@@ -355,10 +359,11 @@ async def handle_update_pin(
             connection.send_error(msg["id"], "not_found", f"Slot {slot} not found")
             return
 
-        # Validate PIN code is 6 digits
-        if not pin_code.isdigit() or len(pin_code) != 6:
+        # Validate PIN code length matches configured pin_length
+        pin_length = config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
+        if not pin_code.isdigit() or len(pin_code) != pin_length:
             connection.send_error(
-                msg["id"], "invalid_input", "PIN code must be exactly 6 digits"
+                msg["id"], "invalid_input", f"PIN code must be exactly {pin_length} digits"
             )
             return
 
@@ -443,6 +448,7 @@ async def handle_config(
             {
                 "auto_expire": config.get(CONF_AUTO_EXPIRE, True),
                 "cleanup_time": config.get(CONF_CLEANUP_TIME, "03:00:00"),
+                "pin_length": config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH),
             },
         )
 

@@ -15,8 +15,8 @@ CONF_OVERWRITE_PROTECTION = "overwrite_protection"
 CONF_MQTT_TOPIC = "mqtt_topic"
 
 # Defaults
-DEFAULT_SLOT_MIN = 0
-DEFAULT_SLOT_MAX = 99
+DEFAULT_SLOT_MIN = 1                    
+DEFAULT_SLOT_MAX = 999                  
 DEFAULT_RESERVED_SLOTS = [1, 2, 3]
 DEFAULT_AUTO_EXPIRE = True
 DEFAULT_CLEANUP_TIME = "03:00:00"

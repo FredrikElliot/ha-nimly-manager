@@ -29,6 +29,7 @@ from .const import (
 )
 from .storage import NimlykoderStorage
 from .adapters.mqtt_z2m import MqttZ2mAdapter
+from .adapters.zha_doorlock import ZhaDoorLockAdapter
 from .services import async_setup_services, async_unload_services
 from .websocket import async_register_websocket_handlers
 from .panel import async_register_panel, async_unregister_panel
@@ -163,21 +164,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         mqtt_topic,
     )
     
+    use_zha = False
     if lock_entity:
-        # New config: derive MQTT topic from entity
-        _LOGGER.info("[async_setup_entry] Using entity selector config")
-        mqtt_topic = _get_mqtt_topic_from_entity(hass, lock_entity)
-        if not mqtt_topic:
-            _LOGGER.error(
-                "[async_setup_entry] Failed to derive MQTT topic from entity '%s'",
+        # If the lock entity was paired via ZHA, talk to it directly over
+        # the ZCL Door Lock cluster instead of deriving an MQTT topic.
+        entity_entry = er.async_get(hass).async_get(lock_entity)
+        use_zha = bool(entity_entry and entity_entry.platform == "zha")
+
+        if use_zha:
+            _LOGGER.info(
+                "[async_setup_entry] Entity '%s' is a ZHA device — using ZHA adapter",
                 lock_entity,
             )
-            return False
-        _LOGGER.info(
-            "[async_setup_entry] Derived MQTT topic '%s' from entity '%s'",
-            mqtt_topic,
-            lock_entity,
-        )
+        else:
+            # New config: derive MQTT topic from entity
+            _LOGGER.info("[async_setup_entry] Using entity selector config")
+            mqtt_topic = _get_mqtt_topic_from_entity(hass, lock_entity)
+            if not mqtt_topic:
+                _LOGGER.error(
+                    "[async_setup_entry] Failed to derive MQTT topic from entity '%s'",
+                    lock_entity,
+                )
+                return False
+            _LOGGER.info(
+                "[async_setup_entry] Derived MQTT topic '%s' from entity '%s'",
+                mqtt_topic,
+                lock_entity,
+            )
     elif mqtt_topic:
         _LOGGER.info(
             "[async_setup_entry] Using legacy MQTT topic config: %s", mqtt_topic
@@ -222,20 +235,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await storage.async_load()
     _LOGGER.info("[async_setup_entry] Storage loaded with %d entries", len(storage.list_entries()))
 
-    # Initialize MQTT adapter
-    _LOGGER.debug("[async_setup_entry] Initializing MQTT adapter...")
-    mqtt_adapter = MqttZ2mAdapter(hass, config[CONF_MQTT_TOPIC])
+    # Initialize the lock communication adapter (ZHA or MQTT/Zigbee2MQTT)
+    if use_zha:
+        _LOGGER.debug("[async_setup_entry] Initializing ZHA adapter...")
+        mqtt_adapter = ZhaDoorLockAdapter(hass, lock_entity)
+    else:
+        _LOGGER.debug("[async_setup_entry] Initializing MQTT adapter...")
+        mqtt_adapter = MqttZ2mAdapter(hass, config[CONF_MQTT_TOPIC])
 
-    # Verify MQTT is available
+    # Verify the adapter can reach the lock
     mqtt_available = await mqtt_adapter.verify_connection()
     if not mqtt_available:
         _LOGGER.warning(
-            "[async_setup_entry] MQTT integration not loaded! "
+            "[async_setup_entry] Lock adapter not available! "
             "PIN codes will NOT be sent to the lock. "
-            "Please configure MQTT in Home Assistant."
+            "Please check your ZHA/MQTT configuration in Home Assistant."
         )
     else:
-        _LOGGER.info("[async_setup_entry] MQTT connection verified successfully")
+        _LOGGER.info("[async_setup_entry] Lock adapter connection verified successfully")
 
     # Store data
     hass.data.setdefault(DOMAIN, {})

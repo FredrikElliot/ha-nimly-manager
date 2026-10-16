@@ -20,12 +20,15 @@ from .const import (
     CONF_AUTO_EXPIRE,
     CONF_CLEANUP_TIME,
     CONF_OVERWRITE_PROTECTION,
+    CONF_PIN_LENGTH,
     DEFAULT_SLOT_MIN,
     DEFAULT_SLOT_MAX,
     DEFAULT_RESERVED_SLOTS,
     DEFAULT_AUTO_EXPIRE,
     DEFAULT_CLEANUP_TIME,
     DEFAULT_OVERWRITE_PROTECTION,
+    DEFAULT_PIN_LENGTH,
+    ALLOWED_PIN_LENGTHS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,6 +75,8 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 options[CONF_RESERVED_SLOTS] = _parse_reserved_slots(
                     user_input.get(CONF_RESERVED_SLOTS, "")
                 )
+                # Convert pin_length from string (selector) to int
+                options[CONF_PIN_LENGTH] = int(user_input.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH))
 
                 return self.async_create_entry(
                     title=user_input.get("name", "Nimlykoder"),
@@ -101,6 +106,13 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(
                     CONF_OVERWRITE_PROTECTION, default=DEFAULT_OVERWRITE_PROTECTION
                 ): bool,
+                vol.Required(CONF_PIN_LENGTH, default=str(DEFAULT_PIN_LENGTH)): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[str(length) for length in ALLOWED_PIN_LENGTHS],
+                        mode=selector.SelectSelectorMode.LIST,
+                        translation_key="pin_length",
+                    )
+                ),
             }
         )
 
@@ -136,6 +148,8 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                 options[CONF_RESERVED_SLOTS] = _parse_reserved_slots(
                     user_input.get(CONF_RESERVED_SLOTS, "")
                 )
+                # Convert pin_length from string (selector) to int
+                options[CONF_PIN_LENGTH] = int(user_input.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH))
                 return self.async_create_entry(title="", data=options)
 
         # Get current options with safe defaults
@@ -165,6 +179,7 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
         overwrite_protection = options.get(CONF_OVERWRITE_PROTECTION)
         if overwrite_protection is None:
             overwrite_protection = DEFAULT_OVERWRITE_PROTECTION
+        pin_length = options.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
 
         data_schema = vol.Schema(
             {
@@ -202,6 +217,16 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                     CONF_OVERWRITE_PROTECTION,
                     default=overwrite_protection,
                 ): bool,
+                vol.Required(
+                    CONF_PIN_LENGTH,
+                    default=str(pin_length),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[str(length) for length in ALLOWED_PIN_LENGTHS],
+                        mode=selector.SelectSelectorMode.LIST,
+                        translation_key="pin_length",
+                    )
+                ),
             }
         )
 

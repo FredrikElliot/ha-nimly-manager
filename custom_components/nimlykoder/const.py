@@ -10,6 +10,7 @@ CONF_RESERVED_SLOTS = "reserved_slots"
 CONF_AUTO_EXPIRE = "auto_expire"
 CONF_CLEANUP_TIME = "cleanup_time"
 CONF_OVERWRITE_PROTECTION = "overwrite_protection"
+CONF_PIN_LENGTH = "pin_length"
 
 # Legacy config key (for migration)
 CONF_MQTT_TOPIC = "mqtt_topic"
@@ -21,6 +22,10 @@ DEFAULT_RESERVED_SLOTS = [1, 2, 3]
 DEFAULT_AUTO_EXPIRE = True
 DEFAULT_CLEANUP_TIME = "03:00:00"
 DEFAULT_OVERWRITE_PROTECTION = True
+DEFAULT_PIN_LENGTH = 6
+
+# Allowed PIN lengths
+ALLOWED_PIN_LENGTHS = [4, 6]
 
 # Storage
 STORAGE_VERSION = 1

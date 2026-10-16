@@ -20,12 +20,14 @@ from .const import (
     CONF_AUTO_EXPIRE,
     CONF_CLEANUP_TIME,
     CONF_OVERWRITE_PROTECTION,
+    CONF_PIN_LENGTH,
     DEFAULT_SLOT_MIN,
     DEFAULT_SLOT_MAX,
     DEFAULT_RESERVED_SLOTS,
     DEFAULT_AUTO_EXPIRE,
     DEFAULT_CLEANUP_TIME,
     DEFAULT_OVERWRITE_PROTECTION,
+    DEFAULT_PIN_LENGTH,
 )
 from .storage import NimlykoderStorage
 from .adapters.mqtt_z2m import MqttZ2mAdapter
@@ -206,6 +208,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         CONF_OVERWRITE_PROTECTION: options.get(
             CONF_OVERWRITE_PROTECTION, DEFAULT_OVERWRITE_PROTECTION
         ),
+        CONF_PIN_LENGTH: int(options.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)),
     }
     
     _LOGGER.info(

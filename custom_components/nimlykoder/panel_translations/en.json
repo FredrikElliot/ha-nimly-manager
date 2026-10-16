@@ -35,8 +35,12 @@
     "name": "Name",
     "name_placeholder": "e.g., John Doe",
     "pin_code": "PIN Code",
-    "pin_placeholder": "6 digits",
-    "pin_hint": "Enter a 6 digit PIN code",
+    "pin_placeholder": "{length} digits",
+    "pin_hint": "Enter a {length}-digit PIN code",
+    "pin_placeholder_4": "4 digits",
+    "pin_hint_4": "Enter a 4 digit PIN code",
+    "pin_placeholder_6": "6 digits",
+    "pin_hint_6": "Enter a 6 digit PIN code",
     "change_pin": "Change PIN Code",
     "pin_change_warning": "Leave empty to keep the current PIN code",
     "confirm_pin_change": "Confirm PIN Change",
@@ -60,7 +64,9 @@
   },
   "errors": {
     "name_required": "Name is required",
-    "pin_invalid": "PIN code must be exactly 6 digits"
+    "pin_invalid": "PIN code must be exactly {length} digits",
+    "pin_invalid_4": "PIN code must be exactly 4 digits",
+    "pin_invalid_6": "PIN code must be exactly 6 digits"
   },
   "empty": {
     "title": "No PIN codes yet",

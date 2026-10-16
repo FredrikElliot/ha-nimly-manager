@@ -12,7 +12,8 @@
           "reserved_slots": "Reserverade Platser (kommaseparerade)",
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
           "cleanup_time": "Daglig Rensningstid",
-          "overwrite_protection": "Aktivera Överskrivningsskydd"
+          "overwrite_protection": "Aktivera Överskrivningsskydd",
+          "pin_length": "PIN-kodens längd"
         },
         "data_description": {
           "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
@@ -21,7 +22,8 @@
           "reserved_slots": "Platser reserverade för permanenta koder (t.ex. familjemedlemmar). Ange platsnummer separerade med komma.",
           "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
           "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
-          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder"
+          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder",
+          "pin_length": "Välj 4 eller 6 siffror. Detta påverkar bara PIN-koder som läggs till eller ändras framöver. Befintliga PIN-koder lagras i låset, inte i Home Assistant. Inställningen ändrar dem inte, och de bör fortsätta fungera."
         }
       }
     },
@@ -44,7 +46,8 @@
           "reserved_slots": "Reserverade Platser (kommaseparerade)",
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
           "cleanup_time": "Daglig Rensningstid",
-          "overwrite_protection": "Aktivera Överskrivningsskydd"
+          "overwrite_protection": "Aktivera Överskrivningsskydd",
+          "pin_length": "PIN-kodens längd"
         },
         "data_description": {
           "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
@@ -53,7 +56,8 @@
           "reserved_slots": "Platser reserverade för permanenta koder (t.ex. familjemedlemmar). Ange platsnummer separerade med komma.",
           "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
           "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
-          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder"
+          "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder",
+          "pin_length": "Välj 4 eller 6 siffror. Detta påverkar bara PIN-koder som läggs till eller ändras framöver. Befintliga PIN-koder lagras i låset, inte i Home Assistant. Inställningen ändrar dem inte, och de bör fortsätta fungera."
         }
       }
     },

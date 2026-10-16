@@ -23,7 +23,7 @@
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
           "overwrite_protection": "Prevent accidental overwriting of existing codes",
-          "pin_length": "Number of digits required for PIN codes. Choose 4 for 4-digit PINs or 6 for 6-digit PINs (default)."
+          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work."
         }
       }
     },
@@ -57,7 +57,7 @@
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
           "overwrite_protection": "Prevent accidental overwriting of existing codes",
-          "pin_length": "Number of digits required for PIN codes. Choose 4 for 4-digit PINs or 6 for 6-digit PINs (default)."
+          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work."
         }
       }
     },

@@ -38,7 +38,7 @@
     "step": {
       "init": {
         "title": "Konfigurera Nimlykoder Alternativ",
-        "description": "Uppdatera dina Nimly-lås kodhanterare inställningar",
+        "description": "Uppdatera inställningarna för Nimlykoders låskodshantering. Om skyddet inaktiveras tas befintliga filter i Zigbee2MQTT inte bort.",
         "data": {
           "lock_entity": "Nimly-lås",
           "slot_min": "Minsta Platsnummer",
@@ -47,7 +47,9 @@
           "auto_expire": "Aktivera Automatisk Utgångsrensning",
           "cleanup_time": "Daglig Rensningstid",
           "overwrite_protection": "Aktivera Överskrivningsskydd",
-          "pin_length": "PIN-kodens längd"
+          "pin_length": "PIN-kodens längd",
+          "protect_sensitive": "Skydda känsliga låsuppgifter",
+          "z2m_base_topic": "Zigbee2MQTT-bastopik"
         },
         "data_description": {
           "lock_entity": "Välj din Nimly-låsentitet. Detta bör vara låsenheten från din Zigbee2MQTT-integration.",
@@ -57,12 +59,29 @@
           "auto_expire": "Ta automatiskt bort utgångna gästkoder vid den schemalagda tiden",
           "cleanup_time": "Tid på dagen då utgångna koder kommer att tas bort",
           "overwrite_protection": "Förhindra oavsiktlig överskrivning av befintliga koder",
-          "pin_length": "Välj 4 eller 6 siffror. Detta påverkar bara PIN-koder som läggs till eller ändras framöver. Befintliga PIN-koder lagras i låset, inte i Home Assistant. Inställningen ändrar dem inte, och de bör fortsätta fungera."
+          "pin_length": "Välj 4 eller 6 siffror. Detta påverkar bara PIN-koder som läggs till eller ändras framöver. Befintliga PIN-koder lagras i låset, inte i Home Assistant. Inställningen ändrar dem inte, och de bör fortsätta fungera.",
+          "protect_sensitive": "När funktionen aktiveras ber Nimlykoder om bekräftelse innan den ändrar Zigbee2MQTT-filtren för last_used_pin_code på det valda låset. Plats-, åtgärds- och källbaserad aktivitet finns kvar. Detta maskerar inte råa Zigbee-/Zigbee2MQTT-felsökningsloggar; undvik felsökningsloggning vid normal drift. Zigbee2MQTTs generella expose_pin-inställning omfattar inte detta separata attribut.",
+          "z2m_base_topic": "Använd exakt Zigbee2MQTT-bastopik (vanligen zigbee2mqtt). Upptäckt ämne fylls i automatiskt när det finns; kontrollera det före godkännande. Endast det valda låset ändras."
+        }
+      },
+      "confirm_protection": {
+        "title": "Bekräfta Zigbee2MQTT-skydd",
+        "description": "Nimlykoder läser och uppdaterar det valda låsets inställningar under angivet Zigbee2MQTT-bast ämne. Befintliga filter och orelaterade enhetsinställningar bevaras. Inga globala loggningsinställningar eller andra enheter ändras.",
+        "data": {
+          "confirm_protection": "Jag godkänner att Zigbee2MQTT-konfigurationen ändras för det valda låset"
         }
       }
     },
     "error": {
-      "invalid_slot_range": "Minsta plats måste vara mindre än högsta plats"
+      "invalid_slot_range": "Minsta plats måste vara mindre än högsta plats",
+      "invalid_z2m_base_topic": "Ange ett giltigt Zigbee2MQTT-bast ämne utan MQTT-jokertecken.",
+      "protection_consent_required": "Bekräftelse krävs innan Zigbee2MQTT ändras.",
+      "protection_device_unavailable": "Kunde inte hitta en stabil Zigbee-identifierare för det valda låset.",
+      "protection_unsupported": "Zigbee2MQTT-versionen eller enhetsinställningarna stöder inte verifierat skydd. Skyddet har inte rapporterats som aktivt.",
+      "protection_mqtt_unavailable": "Home Assistants MQTT-integration är inte tillgänglig.",
+      "protection_permissions": "Zigbee2MQTT avvisade begäran eller MQTT-kontot saknar behörighet till bryggans begärande-/svarstopics.",
+      "protection_rejected": "Zigbee2MQTT avvisade uppdateringen eller verifierade inte båda filtren.",
+      "protection_timeout": "Tidsgränsen för svar från Zigbee2MQTT överskreds. Skyddet har inte rapporterats som aktivt."
     }
   },
   "services": {

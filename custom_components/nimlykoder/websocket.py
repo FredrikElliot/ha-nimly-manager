@@ -174,8 +174,11 @@ async def handle_add(
         try:
             await mqtt_adapter.add_code(slot, pin_code)
         except Exception as err:
+            _LOGGER.error(
+                "Failed to add code via MQTT (type: %s)", type(err).__name__
+            )
             connection.send_error(
-                msg["id"], "mqtt_error", f"Failed to add code via MQTT: {err}"
+                msg["id"], "mqtt_error", "Failed to add code via MQTT."
             )
             return
 
@@ -185,16 +188,19 @@ async def handle_add(
             _LOGGER.info("Added %s code '%s' to slot %s", code_type, name, slot)
             connection.send_result(msg["id"], {"entry": entry.to_dict()})
         except Exception as err:
+            _LOGGER.error(
+                "Failed to store added code (type: %s)", type(err).__name__
+            )
             # Try to clean up MQTT if storage fails
             try:
                 await mqtt_adapter.remove_code(slot)
             except Exception:
                 pass
-            connection.send_error(msg["id"], "storage_error", str(err))
+            connection.send_error(msg["id"], "storage_error", "Failed to store code.")
 
     except Exception as err:
-        _LOGGER.error("Error adding code: %s", err)
-        connection.send_error(msg["id"], "add_failed", str(err))
+        _LOGGER.error("Error adding code (type: %s)", type(err).__name__)
+        connection.send_error(msg["id"], "add_failed", "Failed to add code.")
 
 
 @websocket_api.websocket_command(
@@ -372,8 +378,11 @@ async def handle_update_pin(
         try:
             await mqtt_adapter.add_code(slot, pin_code)
         except Exception as err:
+            _LOGGER.error(
+                "Failed to update PIN via MQTT (type: %s)", type(err).__name__
+            )
             connection.send_error(
-                msg["id"], "mqtt_error", f"Failed to update PIN via MQTT: {err}"
+                msg["id"], "mqtt_error", "Failed to update PIN via MQTT."
             )
             return
 
@@ -381,14 +390,16 @@ async def handle_update_pin(
         try:
             entry = await storage.update_name(slot, entry.name)  # This updates the timestamp
         except Exception as err:
-            _LOGGER.warning("Failed to update timestamp: %s", err)
+            _LOGGER.warning(
+                "Failed to update timestamp (type: %s)", type(err).__name__
+            )
 
         _LOGGER.info("Successfully updated PIN for slot %s", slot)
         connection.send_result(msg["id"], {"success": True, "entry": entry.to_dict()})
 
     except Exception as err:
-        _LOGGER.error("Error updating PIN: %s", err)
-        connection.send_error(msg["id"], "update_failed", str(err))
+        _LOGGER.error("Error updating PIN (type: %s)", type(err).__name__)
+        connection.send_error(msg["id"], "update_failed", "Failed to update PIN.")
 
 
 @websocket_api.websocket_command(

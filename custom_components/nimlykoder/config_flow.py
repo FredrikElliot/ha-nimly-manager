@@ -21,6 +21,8 @@ from .const import (
     CONF_CLEANUP_TIME,
     CONF_OVERWRITE_PROTECTION,
     CONF_PIN_LENGTH,
+    CONF_PROTECT_SENSITIVE,
+    CONF_Z2M_BASE_TOPIC,
     DEFAULT_SLOT_MIN,
     DEFAULT_SLOT_MAX,
     DEFAULT_RESERVED_SLOTS,
@@ -28,8 +30,14 @@ from .const import (
     DEFAULT_CLEANUP_TIME,
     DEFAULT_OVERWRITE_PROTECTION,
     DEFAULT_PIN_LENGTH,
+    DEFAULT_Z2M_BASE_TOPIC,
     ALLOWED_PIN_LENGTHS,
 )
+from .adapters.mqtt_z2m import (
+    MqttZ2mAdapter,
+    Zigbee2MqttProtectionError,
+)
+from .protection import resolve_z2m_device
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +56,16 @@ def _parse_reserved_slots(value: Any) -> list[int]:
 def _format_reserved_slots(slots: list[int]) -> str:
     """Format reserved slots list as comma-separated string."""
     return ", ".join(str(x) for x in slots)
+
+
+def _valid_base_topic(value: Any) -> bool:
+    """Return whether a configured Zigbee2MQTT base topic is a valid MQTT topic."""
+    return (
+        isinstance(value, str)
+        and bool(value.strip().strip("/"))
+        and "+" not in value
+        and "#" not in value
+    )
 
 
 class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -142,15 +160,45 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
             # Validate slot range
             if user_input[CONF_SLOT_MIN] > user_input[CONF_SLOT_MAX]:
                 errors["base"] = "invalid_slot_range"
+            elif not _valid_base_topic(
+                user_input.get(CONF_Z2M_BASE_TOPIC, DEFAULT_Z2M_BASE_TOPIC)
+            ):
+                errors["base"] = "invalid_z2m_base_topic"
             else:
                 # Convert reserved_slots from string to list
                 options = dict(user_input)
+                options[CONF_Z2M_BASE_TOPIC] = user_input.get(
+                    CONF_Z2M_BASE_TOPIC, DEFAULT_Z2M_BASE_TOPIC
+                ).strip().strip("/")
                 options[CONF_RESERVED_SLOTS] = _parse_reserved_slots(
                     user_input.get(CONF_RESERVED_SLOTS, "")
                 )
                 # Convert pin_length from string (selector) to int
                 options[CONF_PIN_LENGTH] = int(user_input.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH))
-                return self.async_create_entry(title="", data=options)
+                if options.get(CONF_PROTECT_SENSITIVE):
+                    previous = self.config_entry.options
+                    changed_target = (
+                        previous.get(CONF_LOCK_ENTITY) != options[CONF_LOCK_ENTITY]
+                        or previous.get(CONF_Z2M_BASE_TOPIC, DEFAULT_Z2M_BASE_TOPIC)
+                        != options[CONF_Z2M_BASE_TOPIC]
+                    )
+                    if not previous.get(CONF_PROTECT_SENSITIVE) or changed_target:
+                        self._pending_options = options
+                        return await self.async_step_confirm_protection()
+                    try:
+                        restart_required = await self._apply_protection(options)
+                    except (ValueError, Zigbee2MqttProtectionError) as err:
+                        errors["base"] = (
+                            err.code
+                            if isinstance(err, Zigbee2MqttProtectionError)
+                            else "protection_device_unavailable"
+                        )
+                    else:
+                        if restart_required:
+                            self._notify_restart_required()
+                        return self.async_create_entry(title="", data=options)
+                else:
+                    return self.async_create_entry(title="", data=options)
 
         # Get current options with safe defaults
         options = self.config_entry.options or {}
@@ -180,6 +228,10 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
         if overwrite_protection is None:
             overwrite_protection = DEFAULT_OVERWRITE_PROTECTION
         pin_length = options.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
+        protect_sensitive = options.get(CONF_PROTECT_SENSITIVE, False)
+        z2m_base_topic = options.get(CONF_Z2M_BASE_TOPIC) or _base_topic_for_lock(
+            self.hass, lock_entity
+        )
 
         data_schema = vol.Schema(
             {
@@ -227,9 +279,91 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                         translation_key="pin_length",
                     )
                 ),
+                vol.Required(
+                    CONF_PROTECT_SENSITIVE,
+                    default=protect_sensitive,
+                ): bool,
+                vol.Required(
+                    CONF_Z2M_BASE_TOPIC,
+                    default=z2m_base_topic,
+                ): str,
             }
         )
 
         return self.async_show_form(
             step_id="init", data_schema=data_schema, errors=errors
         )
+
+    async def async_step_confirm_protection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Require explicit consent before changing Zigbee2MQTT device options."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if not user_input.get("confirm_protection"):
+                errors["base"] = "protection_consent_required"
+            else:
+                options = self._pending_options
+                try:
+                    restart_required = await self._apply_protection(options)
+                except (ValueError, Zigbee2MqttProtectionError) as err:
+                    errors["base"] = (
+                        err.code
+                        if isinstance(err, Zigbee2MqttProtectionError)
+                        else "protection_device_unavailable"
+                    )
+                else:
+                    if restart_required:
+                        self._notify_restart_required()
+                    return self.async_create_entry(title="", data=options)
+
+        return self.async_show_form(
+            step_id="confirm_protection",
+            data_schema=vol.Schema(
+                {vol.Required("confirm_protection", default=False): bool}
+            ),
+            errors=errors,
+        )
+
+    async def _apply_protection(self, options: dict[str, Any]) -> bool:
+        """Apply and verify protection for the explicitly selected lock."""
+        device_id, resolved_base_topic = resolve_z2m_device(
+            self.hass, options[CONF_LOCK_ENTITY]
+        )
+        adapter = MqttZ2mAdapter(
+            self.hass,
+            resolved_base_topic or options[CONF_Z2M_BASE_TOPIC],
+        )
+        return await adapter.async_enable_sensitive_protection(device_id)
+
+    def _notify_restart_required(self) -> None:
+        """Tell the user when Zigbee2MQTT requires a restart for the filters."""
+        from homeassistant.components import persistent_notification
+
+        if self.hass.config.language == "sv":
+            message = (
+                "Zigbee2MQTT rapporterade att ändringen kräver en omstart. "
+                "Starta om Zigbee2MQTT för att skyddet ska börja gälla."
+            )
+            title = "Nimlykoder: omstart av Zigbee2MQTT krävs"
+        else:
+            message = (
+                "Zigbee2MQTT reported that this change requires a restart. "
+                "Restart Zigbee2MQTT for the protection to take effect."
+            )
+            title = "Nimlykoder: Zigbee2MQTT restart required"
+        persistent_notification.async_create(
+            self.hass,
+            message,
+            title=title,
+            notification_id="nimlykoder_sensitive_protection_restart",
+        )
+
+
+def _base_topic_for_lock(hass: Any, entity_id: str) -> str:
+    """Use the selected MQTT device's discovered base topic when available."""
+    try:
+        _, base_topic = resolve_z2m_device(hass, entity_id)
+    except ValueError:
+        return DEFAULT_Z2M_BASE_TOPIC
+    return base_topic or DEFAULT_Z2M_BASE_TOPIC

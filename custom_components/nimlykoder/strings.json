@@ -38,7 +38,7 @@
     "step": {
       "init": {
         "title": "Configure Nimlykoder Options",
-        "description": "Update your Nimly lock code manager settings",
+        "description": "Update your Nimly lock code manager settings. Disabling protection does not remove filters already configured in Zigbee2MQTT.",
         "data": {
           "lock_entity": "Nimly Lock",
           "slot_min": "Minimum Slot Number",
@@ -47,7 +47,9 @@
           "auto_expire": "Enable Automatic Expiry Cleanup",
           "cleanup_time": "Daily Cleanup Time",
           "overwrite_protection": "Enable Overwrite Protection",
-          "pin_length": "PIN Code Length"
+          "pin_length": "PIN Code Length",
+          "protect_sensitive": "Protect sensitive lock information",
+          "z2m_base_topic": "Zigbee2MQTT base topic"
         },
         "data_description": {
           "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
@@ -57,12 +59,29 @@
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
           "overwrite_protection": "Prevent accidental overwriting of existing codes",
-          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work."
+          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work.",
+          "protect_sensitive": "When enabled, Nimlykoder asks for confirmation before changing only the selected lock's Zigbee2MQTT filters for last_used_pin_code. Slot/action/source activity remains available. This does not redact raw Zigbee/Zigbee2MQTT debug logs; avoid debug logging during ordinary operation. Zigbee2MQTT's generic expose_pin option does not cover this separate attribute.",
+          "z2m_base_topic": "Use the exact Zigbee2MQTT base topic (usually zigbee2mqtt). The discovered topic is prefilled when available; verify it before consenting. Only the selected lock is changed."
+        }
+      },
+      "confirm_protection": {
+        "title": "Confirm Zigbee2MQTT protection",
+        "description": "Nimlykoder will read and update the selected device's options under the specified Zigbee2MQTT base topic. Existing filters and unrelated device settings are preserved. No global logging settings or other devices are changed.",
+        "data": {
+          "confirm_protection": "I consent to changing the selected lock's Zigbee2MQTT configuration"
         }
       }
     },
     "error": {
-      "invalid_slot_range": "Minimum slot must be less than maximum slot"
+      "invalid_slot_range": "Minimum slot must be less than maximum slot",
+      "invalid_z2m_base_topic": "Enter a valid Zigbee2MQTT base topic without MQTT wildcards.",
+      "protection_consent_required": "Explicit confirmation is required before changing Zigbee2MQTT.",
+      "protection_device_unavailable": "Could not resolve a stable Zigbee identifier for the selected lock.",
+      "protection_unsupported": "The Zigbee2MQTT version or device options do not support verified protection. No protection was reported as active.",
+      "protection_mqtt_unavailable": "The Home Assistant MQTT integration is not available.",
+      "protection_permissions": "Zigbee2MQTT rejected the request or the MQTT account lacks permission for its bridge request/response topics.",
+      "protection_rejected": "Zigbee2MQTT rejected the device-options update or did not verify both filters.",
+      "protection_timeout": "Timed out waiting for Zigbee2MQTT. Protection was not reported as active."
     }
   },
   "services": {

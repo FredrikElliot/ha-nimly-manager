@@ -263,7 +263,7 @@ ha-nimly-manager/
 
 1. **MQTT Security**: QoS 1 for reliable delivery
 2. **Storage Security**: Uses HA's secure storage system
-3. **No PIN Logging**: PIN codes never appear in logs
+3. **Adapter PIN Logging**: PIN-bearing MQTT command payloads are omitted from this integration's logs; this does not cover Zigbee2MQTT or raw Zigbee debug logs.
 4. **Access Control**: Integration respects HA permissions
 5. **Input Validation**: All inputs validated before processing
 6. **Reserved Slots**: Critical slots protected

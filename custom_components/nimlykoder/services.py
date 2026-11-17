@@ -73,7 +73,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_add_code(call: ServiceCall) -> None:
         """Handle add_code service call."""
-        _LOGGER.info("[handle_add_code] Service called with data: %s", call.data)
+        _LOGGER.info("[handle_add_code] Service called")
         
         data = hass.data[DOMAIN]
         storage = data["storage"]
@@ -172,9 +172,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.info("[handle_add_code] MQTT publish successful for slot %d", slot)
         except Exception as err:
             _LOGGER.error(
-                "[handle_add_code] MQTT publish failed for slot %d: %s", slot, err
+                "[handle_add_code] MQTT publish failed for slot %d (type: %s)",
+                slot,
+                type(err).__name__,
             )
-            raise HomeAssistantError(f"Failed to add code via MQTT: {err}") from err
+            raise HomeAssistantError("Failed to add code via MQTT.") from None
 
         # Then store
         try:
@@ -297,7 +299,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_update_pin(call: ServiceCall) -> None:
         """Handle update_pin service call - update PIN code for existing slot."""
-        _LOGGER.info("[handle_update_pin] Service called for slot %d", call.data["slot"])
+        _LOGGER.info("[handle_update_pin] Service called")
         
         data = hass.data[DOMAIN]
         storage = data["storage"]
@@ -328,8 +330,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             await mqtt_adapter.add_code(slot, pin_code)
             _LOGGER.info("[handle_update_pin] Successfully updated PIN for slot %d", slot)
         except Exception as err:
-            _LOGGER.error("[handle_update_pin] MQTT publish failed: %s", err)
-            raise HomeAssistantError(f"Failed to update PIN via MQTT: {err}") from err
+            _LOGGER.error(
+                "[handle_update_pin] MQTT publish failed (type: %s)",
+                type(err).__name__,
+            )
+            raise HomeAssistantError("Failed to update PIN via MQTT.") from None
 
         # Update the 'updated' timestamp in storage
         try:

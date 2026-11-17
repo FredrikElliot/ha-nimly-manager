@@ -1,10 +1,10 @@
 {
   "title": "Nimlykoder",
-  "subtitle": "Manage PIN codes for your Nimly lock",
+  "subtitle": "Manage credentials for your Nimly lock",
   "add_code": "Add Code",
   "search_placeholder": "Search by name, slot, or type...",
   "stats": {
-    "total": "Total Codes",
+    "total": "Total Credentials",
     "permanent": "Permanent",
     "guest": "Guest",
     "expired": "Expired"
@@ -24,14 +24,21 @@
   },
   "type": {
     "permanent": "Permanent",
-    "guest": "Guest"
+    "guest": "Guest",
+    "pin": "PIN codes",
+    "tag": "Tags",
+    "fingerprint": "Fingerprints"
   },
+  "manually_configured": "Manually configured",
   "dialog": {
     "add_title": "Add New Person",
     "edit_title": "Edit Person",
     "remove_title": "Remove Person",
     "confirm_remove": "Are you sure you want to remove",
     "remove_description": "This will delete the PIN code from slot {slot} and remove it from the lock.",
+    "tag_remove_description": "This only removes the tag record from Nimlykoder. It does not revoke access on the lock. Delete the tag using the lock keypad or vendor app. If it is used again, it can be discovered again.",
+    "fingerprint_remove_description": "This only removes the fingerprint record from Nimlykoder. It does not revoke access on the lock. Delete the fingerprint using the lock keypad or vendor app. If it is used again, it can be discovered again.",
+    "reserved_pin": "Reserved PIN slots cannot be removed here.",
     "name": "Name",
     "name_placeholder": "e.g., John Doe",
     "pin_code": "PIN Code",
@@ -60,7 +67,8 @@
     "cancel": "Cancel",
     "save": "Save Changes",
     "add": "Add Person",
-    "remove": "Remove"
+    "remove": "Remove",
+    "remove_local": "Remove from Nimlykoder"
   },
   "errors": {
     "name_required": "Name is required",
@@ -73,6 +81,7 @@
     "description": "Add your first person to get started with Nimlykoder",
     "add_first": "Add First Person"
   },
+  "section_empty": "No entries",
   "no_results": {
     "title": "No results found",
     "description": "Try a different search term"

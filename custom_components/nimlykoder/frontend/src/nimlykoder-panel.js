@@ -43,7 +43,7 @@ class NimlykoderPanel extends LitElement {
         this.editingCode = null;
         this.editFormError = null;
         this.removingCode = null;
-        this.config = { auto_expire: true, cleanup_time: "03:00:00" };
+        this.config = { auto_expire: true, cleanup_time: "03:00:00", reserved_slots: [] };
         this.showExpiredInfo = false;
         this.suggestedSlot = null;
         this.translations = this._defaultTranslations();
@@ -54,7 +54,7 @@ class NimlykoderPanel extends LitElement {
     _defaultTranslations() {
         return {
             title: "Nimlykoder",
-            subtitle: "Manage PIN codes for your Nimly lock",
+            subtitle: "Manage credentials for your Nimly lock",
             add_code: "Add Code",
             search_placeholder: "Search by name, slot, or type...",
             stats: {
@@ -71,13 +71,20 @@ class NimlykoderPanel extends LitElement {
             type: {
                 permanent: "Permanent",
                 guest: "Guest",
+                pin: "PIN codes",
+                tag: "Tags",
+                fingerprint: "Fingerprints",
             },
+            manually_configured: "Manually configured",
             dialog: {
                 add_title: "Add New Person",
                 edit_title: "Edit Person",
                 remove_title: "Remove Person",
                 confirm_remove: "Are you sure you want to remove",
                 remove_description: "This will delete the PIN code from slot {slot} and remove it from the lock.",
+                tag_remove_description: "This only removes the tag record from Nimlykoder. It does not revoke access on the lock. Delete the tag using the lock keypad or vendor app. If it is used again, it can be discovered again.",
+                fingerprint_remove_description: "This only removes the fingerprint record from Nimlykoder. It does not revoke access on the lock. Delete the fingerprint using the lock keypad or vendor app. If it is used again, it can be discovered again.",
+                reserved_pin: "Reserved PIN slots cannot be removed here.",
                 name: "Name",
                 name_placeholder: "e.g., John Doe",
                 pin_code: "PIN Code",
@@ -100,6 +107,7 @@ class NimlykoderPanel extends LitElement {
                 save: "Save Changes",
                 add: "Add Person",
                 remove: "Remove",
+                remove_local: "Remove from Nimlykoder",
             },
             errors: {
                 name_required: "Name is required",
@@ -110,6 +118,7 @@ class NimlykoderPanel extends LitElement {
                 description: "Add your first person to get started with Nimlykoder",
                 add_first: "Add First Person",
             },
+            section_empty: "No entries",
             no_results: {
                 title: "No results found",
                 description: "Try a different search term",
@@ -533,6 +542,21 @@ class NimlykoderPanel extends LitElement {
                 gap: 12px;
             }
 
+            .credential-section {
+                margin-top: 24px;
+            }
+
+            .credential-section h2 {
+                margin: 0 0 12px;
+                font-size: 18px;
+                font-weight: 500;
+            }
+
+            .credential-empty {
+                color: var(--text-secondary);
+                margin: 0;
+            }
+
             .person-card {
                 background: var(--card-bg);
                 border-radius: 16px;
@@ -952,23 +976,32 @@ class NimlykoderPanel extends LitElement {
         const query = this.searchQuery.toLowerCase();
         return this.codes.filter(
             (code) =>
-                code.name.toLowerCase().includes(query) ||
+                this.displayName(code).toLowerCase().includes(query) ||
                 code.slot.toString().includes(query) ||
-                code.type.toLowerCase().includes(query)
+                (code.method || "pin").toLowerCase().includes(query) ||
+                (code.type || "").toLowerCase().includes(query)
         );
     }
 
     get stats() {
         const total = this.codes.length;
-        const permanent = this.codes.filter((c) => c.type === "permanent").length;
-        const guest = this.codes.filter((c) => c.type === "guest").length;
+        const permanent = this.codes.filter(
+            (c) => (c.method || "pin") === "pin" && c.type === "permanent"
+        ).length;
+        const guest = this.codes.filter(
+            (c) => (c.method || "pin") === "pin" && c.type === "guest"
+        ).length;
         const expired = this.codes.filter(
-            (c) => c.expiry && new Date(c.expiry) < new Date()
+            (c) =>
+                (c.method || "pin") === "pin" &&
+                c.expiry &&
+                new Date(c.expiry) < new Date()
         ).length;
         return { total, permanent, guest, expired };
     }
 
     getInitials(name) {
+        if (!name) return "?";
         return name
             .split(" ")
             .map((n) => n[0])
@@ -978,7 +1011,22 @@ class NimlykoderPanel extends LitElement {
     }
 
     isExpired(code) {
-        return code.expiry && new Date(code.expiry) < new Date();
+        return (
+            (code.method || "pin") === "pin" &&
+            code.expiry &&
+            new Date(code.expiry) < new Date()
+        );
+    }
+
+    displayName(code) {
+        return code.name || this.t("manually_configured");
+    }
+
+    isPinReserved(code) {
+        return (
+            (code.method || "pin") === "pin" &&
+            (code.slot === 0 || (this.config?.reserved_slots || []).includes(code.slot))
+        );
     }
 
     getAvatarClass(code) {
@@ -992,6 +1040,8 @@ class NimlykoderPanel extends LitElement {
     }
 
     getBadgeText(code) {
+        const method = code.method || "pin";
+        if (method !== "pin") return this.t(`type.${method}`);
         if (this.isExpired(code)) return this.t('status.expired');
         return code.type === "permanent" ? this.t('type.permanent') : this.t('type.guest');
     }
@@ -1183,9 +1233,23 @@ class NimlykoderPanel extends LitElement {
         }
 
         return html`
-            <div class="person-list">
-                ${codes.map((code) => this._renderPersonCard(code))}
-            </div>
+            ${["pin", "tag", "fingerprint"].map((method) => {
+                const methodCodes = codes.filter(
+                    (code) => (code.method || "pin") === method
+                );
+                return html`
+                    <section class="credential-section">
+                        <h2>${this.t(`type.${method}`)}</h2>
+                        ${methodCodes.length
+                            ? html`<div class="person-list">
+                                  ${methodCodes.map((code) =>
+                                      this._renderPersonCard(code)
+                                  )}
+                              </div>`
+                            : html`<p class="credential-empty">${this.t("section_empty")}</p>`}
+                    </section>
+                `;
+            })}
         `;
     }
 
@@ -1193,10 +1257,10 @@ class NimlykoderPanel extends LitElement {
         return html`
             <div class="person-card">
                 <div class="person-avatar ${this.getAvatarClass(code)}">
-                    ${this.getInitials(code.name)}
+                    ${this.getInitials(this.displayName(code))}
                 </div>
                 <div class="person-info">
-                    <h3 class="person-name">${code.name}</h3>
+                    <h3 class="person-name">${this.displayName(code)}</h3>
                     <div class="person-details">
                         <span class="person-detail">
                             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -1232,11 +1296,14 @@ class NimlykoderPanel extends LitElement {
                     </button>
                     <button
                         class="btn btn-icon btn-secondary"
+                        ?disabled=${this.isPinReserved(code)}
                         @click=${() => {
                             this.removingCode = code;
                             this.showRemoveDialog = true;
                         }}
-                        title="${this.t('dialog.remove')}"
+                        title="${this.isPinReserved(code)
+                            ? this.t('dialog.reserved_pin')
+                            : this.t('dialog.remove')}"
                     >
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
@@ -1340,6 +1407,7 @@ class NimlykoderPanel extends LitElement {
 
     _renderEditDialog() {
         if (!this.editingCode) return "";
+        const isPin = (this.editingCode.method || "pin") === "pin";
         const isGuest = this.editingCode.type === 'guest';
         return html`
             <div class="dialog-overlay" @click=${this._closeEditDialog}>
@@ -1355,26 +1423,26 @@ class NimlykoderPanel extends LitElement {
                     <div class="dialog-content">
                         <div class="form-group">
                             <label for="edit-name">${this.t('dialog.name')}</label>
-                            <input type="text" id="edit-name" .value=${this.editingCode.name} placeholder="${this.t('dialog.name_placeholder')}" @input=${() => this.editFormError = null} />
+                            <input type="text" id="edit-name" .value=${this.editingCode.name || ""} placeholder="${this.t('dialog.name_placeholder')}" @input=${() => this.editFormError = null} />
                             ${this.editFormError === 'name_required' ? html`<small class="field-error">${this.t('errors.name_required')}</small>` : ''}
                         </div>
                         
-                        ${isGuest ? html`
+                        ${isPin && isGuest ? html`
                             <div class="form-group">
                                 <label for="edit-expiry">${this.t('dialog.expiry')}</label>
                                 <input type="date" id="edit-expiry" .value=${this.editingCode.expiry || ""} />
                                 <small>${this.t('dialog.expiry_hint')}</small>
                             </div>
-                        ` : html`
+                        ` : isPin ? html`
                             <p style="color: var(--text-secondary); margin-bottom: 16px;">${this.t('dialog.permanent_no_expiry')}</p>
-                        `}
+                        ` : ""}
                         
-                        <div class="form-group" style="border-top: 1px solid var(--divider); padding-top: 16px; margin-top: 16px;">
+                        ${isPin ? html`<div class="form-group" style="border-top: 1px solid var(--divider); padding-top: 16px; margin-top: 16px;">
                             <label for="edit-pin">${this.t('dialog.change_pin')}</label>
                             <input type="text" id="edit-pin" placeholder="${this.t('dialog.pin_placeholder')}" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" @input=${() => this.editFormError = null} />
                             <small style="color: var(--warning-color, #ff9800);">${this.t('dialog.pin_change_warning')}</small>
                             ${this.editFormError === 'pin_invalid' ? html`<small class="field-error">${this.t('errors.pin_invalid')}</small>` : ''}
-                        </div>
+                        </div>` : ""}
                     </div>
                     <div class="dialog-actions">
                         <button class="btn btn-secondary" @click=${this._closeEditDialog}>${this.t('dialog.cancel')}</button>
@@ -1428,14 +1496,25 @@ class NimlykoderPanel extends LitElement {
                         </button>
                     </div>
                     <div class="dialog-content">
-                        <p>${this.t('dialog.confirm_remove')} <strong>${this.removingCode.name}</strong>?</p>
+                        <p>${this.t('dialog.confirm_remove')} <strong>${this.displayName(this.removingCode)}</strong>?</p>
                         <p style="margin-top: 12px; color: var(--text-secondary); font-size: 14px;">
-                            ${this.t('dialog.remove_description', { slot: this.removingCode.slot })}
+                            ${this.t(
+                                (this.removingCode.method || "pin") === "tag"
+                                    ? "dialog.tag_remove_description"
+                                    : (this.removingCode.method || "pin") === "fingerprint"
+                                      ? "dialog.fingerprint_remove_description"
+                                      : "dialog.remove_description",
+                                { slot: this.removingCode.slot }
+                            )}
                         </p>
                     </div>
                     <div class="dialog-actions">
                         <button class="btn btn-secondary" @click=${this._closeRemoveDialog}>${this.t('dialog.cancel')}</button>
-                        <button class="btn btn-danger" @click=${this._handleRemove}>${this.t('dialog.remove')}</button>
+                        <button class="btn btn-danger" @click=${this._handleRemove}>
+                            ${(this.removingCode.method || "pin") === "pin"
+                                ? this.t("dialog.remove")
+                                : this.t("dialog.remove_local")}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1520,9 +1599,11 @@ class NimlykoderPanel extends LitElement {
 
     async _handleEditSubmit() {
         const name = this.shadowRoot.getElementById("edit-name").value;
+        const isPin = (this.editingCode.method || "pin") === "pin";
         const expiryEl = this.shadowRoot.getElementById("edit-expiry");
         const expiry = expiryEl ? expiryEl.value : null;
-        const newPin = this.shadowRoot.getElementById("edit-pin").value.trim();
+        const pinEl = this.shadowRoot.getElementById("edit-pin");
+        const newPin = pinEl ? pinEl.value.trim() : "";
 
         if (!name || !name.trim()) {
             this.editFormError = 'name_required';
@@ -1541,17 +1622,19 @@ class NimlykoderPanel extends LitElement {
                 await this.hass.callWS({
                     type: "nimlykoder/update_name",
                     slot: this.editingCode.slot,
+                    method: this.editingCode.method || "pin",
                     name: name.trim(),
                 });
             }
 
             // Update expiry for guest codes
-            if (this.editingCode.type === 'guest') {
+            if (isPin && this.editingCode.type === 'guest') {
                 const currentExpiry = this.editingCode.expiry || "";
                 if (expiry !== currentExpiry) {
                     await this.hass.callWS({
                         type: "nimlykoder/update_expiry",
                         slot: this.editingCode.slot,
+                        method: "pin",
                         expiry: expiry || null,
                     });
                 }
@@ -1605,6 +1688,7 @@ class NimlykoderPanel extends LitElement {
             await this.hass.callWS({
                 type: "nimlykoder/remove",
                 slot: this.removingCode.slot,
+                method: this.removingCode.method || "pin",
             });
             this.showRemoveDialog = false;
             this.removingCode = null;

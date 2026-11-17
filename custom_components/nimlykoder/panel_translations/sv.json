@@ -1,10 +1,10 @@
 {
   "title": "Nimlykoder",
-  "subtitle": "Hantera PIN-koder för ditt Nimly-lås",
+  "subtitle": "Hantera behörigheter för ditt Nimly-lås",
   "add_code": "Lägg till kod",
   "search_placeholder": "Sök på namn, plats eller typ...",
   "stats": {
-    "total": "Totalt antal",
+    "total": "Totalt antal behörigheter",
     "permanent": "Permanenta",
     "guest": "Gäster",
     "expired": "Utgångna"
@@ -24,14 +24,21 @@
   },
   "type": {
     "permanent": "Permanent",
-    "guest": "Gäst"
+    "guest": "Gäst",
+    "pin": "PIN-koder",
+    "tag": "Taggar",
+    "fingerprint": "Fingeravtryck"
   },
+  "manually_configured": "Manuellt konfigurerad",
   "dialog": {
     "add_title": "Lägg till ny person",
     "edit_title": "Redigera person",
     "remove_title": "Ta bort person",
     "confirm_remove": "Är du säker på att du vill ta bort",
     "remove_description": "Detta tar bort PIN-koden från plats {slot} och raderar den från låset.",
+    "tag_remove_description": "Detta tar endast bort taggens post från Nimlykoder. Det spärrar inte åtkomsten till låset. Ta bort taggen med låsets knappsats eller leverantörens app. Om den används igen kan den upptäckas på nytt.",
+    "fingerprint_remove_description": "Detta tar endast bort fingeravtryckets post från Nimlykoder. Det spärrar inte åtkomsten till låset. Ta bort fingeravtrycket med låsets knappsats eller leverantörens app. Om det används igen kan det upptäckas på nytt.",
+    "reserved_pin": "Reserverade PIN-platser kan inte tas bort här.",
     "name": "Namn",
     "name_placeholder": "t.ex. Johan Andersson",
     "pin_code": "PIN-kod",
@@ -60,7 +67,8 @@
     "cancel": "Avbryt",
     "save": "Spara ändringar",
     "add": "Lägg till person",
-    "remove": "Ta bort"
+    "remove": "Ta bort",
+    "remove_local": "Ta bort från Nimlykoder"
   },
   "errors": {
     "name_required": "Namn krävs",
@@ -73,6 +81,7 @@
     "description": "Lägg till din första person för att komma igång med Nimlykoder",
     "add_first": "Lägg till första personen"
   },
+  "section_empty": "Inga poster",
   "no_results": {
     "title": "Inga resultat hittades",
     "description": "Prova ett annat sökord"

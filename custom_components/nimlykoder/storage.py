@@ -10,21 +10,30 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import STORAGE_KEY, STORAGE_VERSION, TYPE_PERMANENT, TYPE_GUEST
+from .const import (
+    CREDENTIAL_METHODS,
+    CREDENTIAL_PIN,
+    STORAGE_KEY,
+    STORAGE_VERSION,
+    TYPE_PERMANENT,
+    TYPE_GUEST,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
 class CodeEntry:
-    """Represents a PIN code entry."""
+    """Represents a lock credential."""
 
     slot: int
-    name: str
+    name: str | None
     type: str
     expiry: str | None
     created: str
     updated: str
+    method: str = CREDENTIAL_PIN
+    discovered: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -40,6 +49,8 @@ class CodeEntry:
             expiry=data.get("expiry"),
             created=data["created"],
             updated=data["updated"],
+            method=data.get("method", CREDENTIAL_PIN),
+            discovered=data.get("discovered", False),
         )
 
 
@@ -58,9 +69,19 @@ class NimlykoderStorage:
         if data is None:
             self._data = {}
         else:
-            # Handle migration if needed
-            if data.get("version", 1) == STORAGE_VERSION:
+            version = data.get("version", 1)
+            if version == STORAGE_VERSION:
                 self._data = data.get("entries", {})
+            elif version == 1:
+                self._data = {
+                    self._key(CREDENTIAL_PIN, int(slot)): {
+                        **entry,
+                        "method": CREDENTIAL_PIN,
+                        "discovered": False,
+                    }
+                    for slot, entry in data.get("entries", {}).items()
+                }
+                await self.async_save()
             else:
                 _LOGGER.warning("Unknown storage version, resetting data")
                 self._data = {}
@@ -77,17 +98,32 @@ class NimlykoderStorage:
     def list_entries(self) -> list[CodeEntry]:
         """List all entries."""
         entries = []
-        for slot_str, data in self._data.items():
-            slot = int(slot_str)
-            entries.append(CodeEntry.from_dict(slot, data))
-        return sorted(entries, key=lambda e: e.slot)
+        for key, data in self._data.items():
+            method, slot = self._split_key(key, data)
+            entries.append(CodeEntry.from_dict(slot, data | {"method": method}))
+        return sorted(entries, key=lambda e: (e.method, e.slot))
 
-    def get(self, slot: int) -> CodeEntry | None:
-        """Get entry by slot."""
-        slot_str = str(slot)
-        if slot_str not in self._data:
+    def get(self, slot: int, method: str = CREDENTIAL_PIN) -> CodeEntry | None:
+        """Get entry by method and slot."""
+        key = self._key(method, slot)
+        if key not in self._data:
             return None
-        return CodeEntry.from_dict(slot, self._data[slot_str])
+        return CodeEntry.from_dict(slot, self._data[key] | {"method": method})
+
+    @staticmethod
+    def _key(method: str, slot: int) -> str:
+        """Return the storage key for a credential identity."""
+        if method not in CREDENTIAL_METHODS:
+            raise HomeAssistantError(f"Unknown credential method: {method}")
+        return f"{method}:{slot}"
+
+    @staticmethod
+    def _split_key(key: str, data: dict[str, Any]) -> tuple[str, int]:
+        """Read a current or legacy storage key."""
+        if ":" in key:
+            method, slot = key.split(":", 1)
+            return method, int(slot)
+        return data.get("method", CREDENTIAL_PIN), int(key)
 
     async def add(
         self,
@@ -95,13 +131,14 @@ class NimlykoderStorage:
         name: str,
         code_type: str,
         expiry: str | None = None,
+        method: str = CREDENTIAL_PIN,
     ) -> CodeEntry:
-        """Add a new entry."""
+        """Add or replace an entry."""
         now = datetime.now().isoformat()
-        slot_str = str(slot)
+        key = self._key(method, slot)
 
         # Validate type and expiry
-        if code_type == TYPE_GUEST and expiry is None:
+        if method == CREDENTIAL_PIN and code_type == TYPE_GUEST and expiry is None:
             raise HomeAssistantError("Guest codes must have an expiry date")
 
         entry_data = {
@@ -110,46 +147,74 @@ class NimlykoderStorage:
             "expiry": expiry,
             "created": now,
             "updated": now,
+            "method": method,
+            "discovered": False,
         }
 
-        self._data[slot_str] = entry_data
+        self._data[key] = entry_data
         await self.async_save()
 
         return CodeEntry.from_dict(slot, entry_data)
 
-    async def remove(self, slot: int) -> None:
-        """Remove an entry."""
-        slot_str = str(slot)
-        if slot_str in self._data:
-            del self._data[slot_str]
+    async def discover(self, slot: int, method: str) -> CodeEntry:
+        """Record a reported credential without replacing existing metadata."""
+        key = self._key(method, slot)
+        if key in self._data:
+            return CodeEntry.from_dict(slot, self._data[key] | {"method": method})
+
+        now = datetime.now().isoformat()
+        entry_data = {
+            "name": None,
+            "type": TYPE_PERMANENT,
+            "expiry": None,
+            "created": now,
+            "updated": now,
+            "method": method,
+            "discovered": True,
+        }
+        self._data[key] = entry_data
+        await self.async_save()
+        return CodeEntry.from_dict(slot, entry_data)
+
+    async def remove(self, slot: int, method: str = CREDENTIAL_PIN) -> None:
+        """Remove an entry by method and slot."""
+        key = self._key(method, slot)
+        if key in self._data:
+            del self._data[key]
             await self.async_save()
 
-    async def update_expiry(self, slot: int, expiry: str | None) -> CodeEntry:
+    async def update_expiry(
+        self, slot: int, expiry: str | None, method: str = CREDENTIAL_PIN
+    ) -> CodeEntry:
         """Update expiry date."""
-        slot_str = str(slot)
-        if slot_str not in self._data:
+        key = self._key(method, slot)
+        if method != CREDENTIAL_PIN:
+            raise HomeAssistantError("Expiry dates are only supported for PIN codes")
+        if key not in self._data:
             raise HomeAssistantError(f"Slot {slot} not found")
 
-        self._data[slot_str]["expiry"] = expiry
-        self._data[slot_str]["updated"] = datetime.now().isoformat()
+        self._data[key]["expiry"] = expiry
+        self._data[key]["updated"] = datetime.now().isoformat()
         await self.async_save()
 
-        return CodeEntry.from_dict(slot, self._data[slot_str])
+        return CodeEntry.from_dict(slot, self._data[key])
 
-    async def update_name(self, slot: int, name: str) -> CodeEntry:
-        """Update name for a code entry."""
-        slot_str = str(slot)
-        if slot_str not in self._data:
+    async def update_name(
+        self, slot: int, name: str, method: str = CREDENTIAL_PIN
+    ) -> CodeEntry:
+        """Update name for a credential entry."""
+        key = self._key(method, slot)
+        if key not in self._data:
             raise HomeAssistantError(f"Slot {slot} not found")
 
         if not name or not name.strip():
             raise HomeAssistantError("Name cannot be empty")
 
-        self._data[slot_str]["name"] = name.strip()
-        self._data[slot_str]["updated"] = datetime.now().isoformat()
+        self._data[key]["name"] = name.strip()
+        self._data[key]["updated"] = datetime.now().isoformat()
         await self.async_save()
 
-        return CodeEntry.from_dict(slot, self._data[slot_str])
+        return CodeEntry.from_dict(slot, self._data[key])
 
     def find_first_free_slot(
         self, slot_min: int, slot_max: int, reserved_slots: list[int]
@@ -158,23 +223,28 @@ class NimlykoderStorage:
         for slot in range(slot_min, slot_max + 1):
             if slot in reserved_slots:
                 continue
-            if str(slot) not in self._data:
+            if not self.is_slot_occupied(slot):
                 return slot
         return None
 
     def expired_guest_slots(self, today: date) -> list[int]:
         """Get list of expired guest code slots."""
         expired = []
-        for slot_str, data in self._data.items():
-            if data["type"] == TYPE_GUEST and data.get("expiry"):
+        for key, data in self._data.items():
+            method, slot = self._split_key(key, data)
+            if (
+                method == CREDENTIAL_PIN
+                and data["type"] == TYPE_GUEST
+                and data.get("expiry")
+            ):
                 try:
                     expiry_date = datetime.fromisoformat(data["expiry"]).date()
                     if expiry_date < today:
-                        expired.append(int(slot_str))
+                        expired.append(slot)
                 except (ValueError, TypeError):
-                    _LOGGER.error("Invalid expiry date for slot %s", slot_str)
+                    _LOGGER.error("Invalid expiry date for slot %s", slot)
         return expired
 
-    def is_slot_occupied(self, slot: int) -> bool:
-        """Check if slot is occupied."""
-        return str(slot) in self._data
+    def is_slot_occupied(self, slot: int, method: str = CREDENTIAL_PIN) -> bool:
+        """Check whether a method-specific slot is occupied."""
+        return self._key(method, slot) in self._data

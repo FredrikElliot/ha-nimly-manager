@@ -51,7 +51,7 @@ add_code:
 
 remove_code:
   name: Remove Code
-  description: Remove a PIN code from the lock
+  description: Remove a PIN code from the lock, or only remove a tag/fingerprint record from Nimlykoder
   fields:
     slot:
       name: Slot Number
@@ -63,6 +63,16 @@ remove_code:
           min: 0
           max: 99
           mode: box
+    method:
+      name: Credential Method
+      description: PIN removal clears the PIN on the lock; tag and fingerprint removal only removes the local record
+      default: pin
+      selector:
+        select:
+          options:
+            - pin
+            - tag
+            - fingerprint
 
 update_expiry:
   name: Update Expiry
@@ -87,7 +97,7 @@ update_expiry:
 
 update_name:
   name: Update Name
-  description: Update the name of a code entry
+  description: Update the name of a PIN, tag, or fingerprint entry
   fields:
     slot:
       name: Slot Number
@@ -106,6 +116,16 @@ update_name:
       example: "John Doe"
       selector:
         text:
+    method:
+      name: Credential Method
+      description: Credential method for this slot
+      default: pin
+      selector:
+        select:
+          options:
+            - pin
+            - tag
+            - fingerprint
 
 update_pin:
   name: Update PIN Code

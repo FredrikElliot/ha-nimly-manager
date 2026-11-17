@@ -11,6 +11,8 @@ from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
+    CREDENTIAL_METHODS,
+    CREDENTIAL_PIN,
     DOMAIN,
     CONF_MQTT_TOPIC,
     CONF_PIN_LENGTH,
@@ -25,6 +27,7 @@ from .const import (
     TYPE_PERMANENT,
     TYPE_GUEST,
 )
+from .credential_policy import is_reserved_pin_slot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +45,8 @@ SERVICE_ADD_CODE_SCHEMA = vol.Schema(
 
 SERVICE_REMOVE_CODE_SCHEMA = vol.Schema(
     {
-        vol.Required("slot"): cv.positive_int,
+        vol.Required("slot"): vol.Any(vol.Equal(0), cv.positive_int),
+        vol.Optional("method", default=CREDENTIAL_PIN): vol.In(CREDENTIAL_METHODS),
     }
 )
 
@@ -50,13 +54,15 @@ SERVICE_UPDATE_EXPIRY_SCHEMA = vol.Schema(
     {
         vol.Required("slot"): cv.positive_int,
         vol.Optional("expiry"): cv.string,
+        vol.Optional("method", default=CREDENTIAL_PIN): vol.In([CREDENTIAL_PIN]),
     }
 )
 
 SERVICE_UPDATE_NAME_SCHEMA = vol.Schema(
     {
-        vol.Required("slot"): cv.positive_int,
+        vol.Required("slot"): vol.Any(vol.Equal(0), cv.positive_int),
         vol.Required("name"): cv.string,
+        vol.Optional("method", default=CREDENTIAL_PIN): vol.In(CREDENTIAL_METHODS),
     }
 )
 
@@ -73,8 +79,6 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_add_code(call: ServiceCall) -> None:
         """Handle add_code service call."""
-        _LOGGER.info("[handle_add_code] Service called with data: %s", call.data)
-        
         data = hass.data[DOMAIN]
         storage = data["storage"]
         mqtt_adapter = data["mqtt_adapter"]
@@ -120,6 +124,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if preferred_slot is not None:
             slot = preferred_slot
             _LOGGER.debug("[handle_add_code] Using preferred slot: %d", slot)
+            if is_reserved_pin_slot(slot, config["reserved_slots"]):
+                raise HomeAssistantError(f"Slot {slot} is reserved")
             # Check bounds
             if slot < config[
                 "slot_min"
@@ -211,32 +217,35 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         config = data["config"]
 
         slot = call.data["slot"]
+        method = call.data["method"]
 
         # Check if slot exists
-        entry = storage.get(slot)
+        entry = storage.get(slot, method)
         if entry is None:
-            _LOGGER.error("[handle_remove_code] Slot %d not found in storage", slot)
-            raise HomeAssistantError(f"Slot {slot} not found")
+            _LOGGER.error("[handle_remove_code] %s slot %d not found", method, slot)
+            raise HomeAssistantError(f"{method} slot {slot} not found")
+
+        if method == CREDENTIAL_PIN and is_reserved_pin_slot(
+            slot, config["reserved_slots"]
+        ):
+            raise HomeAssistantError(
+                f"PIN slot {slot} is reserved and cannot be removed"
+            )
         
         _LOGGER.info(
             "[handle_remove_code] Removing code '%s' from slot %d", entry.name, slot
         )
 
-        # Remove from MQTT
-        _LOGGER.info(
-            "[handle_remove_code] Sending remove command via MQTT - slot=%d, topic=%s",
-            slot,
-            config.get(CONF_MQTT_TOPIC, "unknown"),
-        )
-        try:
-            await mqtt_adapter.remove_code(slot)
-            _LOGGER.info("[handle_remove_code] MQTT remove successful for slot %d", slot)
-        except Exception as err:
-            raise HomeAssistantError(f"Failed to remove code via MQTT: {err}") from err
+        if method == CREDENTIAL_PIN:
+            try:
+                await mqtt_adapter.remove_code(slot)
+            except Exception as err:
+                raise HomeAssistantError(
+                    f"Failed to remove code via MQTT: {err}"
+                ) from err
 
-        # Remove from storage
-        await storage.remove(slot)
-        _LOGGER.info("Removed code from slot %s", slot)
+        await storage.remove(slot, method)
+        _LOGGER.info("Removed local %s record from slot %s", method, slot)
 
     async def handle_update_expiry(call: ServiceCall) -> None:
         """Handle update_expiry service call."""
@@ -245,6 +254,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         slot = call.data["slot"]
         expiry = call.data.get("expiry")
+        method = call.data["method"]
 
         # Validate expiry format if provided
         if expiry:
@@ -255,7 +265,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         # Update storage
         try:
-            await storage.update_expiry(slot, expiry)
+            await storage.update_expiry(slot, expiry, method)
             _LOGGER.info("Updated expiry for slot %s to %s", slot, expiry)
         except Exception as err:
             raise HomeAssistantError(f"Failed to update expiry: {err}") from err
@@ -280,16 +290,17 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         slot = call.data["slot"]
         name = call.data["name"]
+        method = call.data["method"]
 
         # Check if slot exists
-        entry = storage.get(slot)
+        entry = storage.get(slot, method)
         if entry is None:
-            _LOGGER.error("[handle_update_name] Slot %d not found", slot)
-            raise HomeAssistantError(f"Slot {slot} not found")
+            _LOGGER.error("[handle_update_name] %s slot %d not found", method, slot)
+            raise HomeAssistantError(f"{method} slot {slot} not found")
 
         # Update storage
         try:
-            await storage.update_name(slot, name)
+            await storage.update_name(slot, name, method)
             _LOGGER.info("[handle_update_name] Updated name for slot %d to '%s'", slot, name)
         except Exception as err:
             _LOGGER.error("[handle_update_name] Failed to update name: %s", err)
@@ -312,6 +323,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if entry is None:
             _LOGGER.error("[handle_update_pin] Slot %d not found", slot)
             raise HomeAssistantError(f"Slot {slot} not found")
+        if is_reserved_pin_slot(slot, config["reserved_slots"]):
+            raise HomeAssistantError(f"Slot {slot} is reserved")
 
         # Validate PIN code length matches configured pin_length
         pin_length = config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)

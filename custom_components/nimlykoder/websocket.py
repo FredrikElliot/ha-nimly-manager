@@ -12,6 +12,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CREDENTIAL_METHODS,
+    CREDENTIAL_PIN,
     DOMAIN,
     WS_TYPE_LIST,
     WS_TYPE_ADD,
@@ -29,6 +31,7 @@ from .const import (
     CONF_PIN_LENGTH,
     DEFAULT_PIN_LENGTH,
 )
+from .credential_policy import is_reserved_pin_slot
 
 _LOGGER = logging.getLogger(__name__)
 PANEL_TRANSLATION_KEYS = frozenset({"title", "subtitle", "add_code"})
@@ -133,6 +136,11 @@ async def handle_add(
         # Determine slot
         if preferred_slot is not None:
             slot = preferred_slot
+            if is_reserved_pin_slot(slot, config["reserved_slots"]):
+                connection.send_error(
+                    msg["id"], "slot_reserved", f"Slot {slot} is reserved"
+                )
+                return
             # Check bounds
             if slot < config["slot_min"] or slot > config["slot_max"]:
                 connection.send_error(
@@ -201,6 +209,7 @@ async def handle_add(
     {
         vol.Required("type"): WS_TYPE_REMOVE,
         vol.Required("slot"): int,
+        vol.Optional("method", default=CREDENTIAL_PIN): vol.In(CREDENTIAL_METHODS),
     }
 )
 @websocket_api.async_response
@@ -214,28 +223,42 @@ async def handle_remove(
         data = hass.data[DOMAIN]
         storage = data["storage"]
         mqtt_adapter = data["mqtt_adapter"]
+        config = data["config"]
 
         slot = msg["slot"]
+        method = msg["method"]
 
         # Check if slot exists
-        entry = storage.get(slot)
+        entry = storage.get(slot, method)
         if entry is None:
-            connection.send_error(msg["id"], "not_found", f"Slot {slot} not found")
-            return
-
-        # Remove from MQTT
-        try:
-            await mqtt_adapter.remove_code(slot)
-        except Exception as err:
             connection.send_error(
-                msg["id"], "mqtt_error", f"Failed to remove code via MQTT: {err}"
+                msg["id"], "not_found", f"{method} slot {slot} not found"
             )
             return
 
-        # Remove from storage
-        await storage.remove(slot)
-        _LOGGER.info("Removed code from slot %s", slot)
-        connection.send_result(msg["id"], {"success": True})
+        if method == CREDENTIAL_PIN and is_reserved_pin_slot(
+            slot, config["reserved_slots"]
+        ):
+            connection.send_error(
+                msg["id"], "slot_reserved", f"PIN slot {slot} is reserved"
+            )
+            return
+
+        if method == CREDENTIAL_PIN:
+            try:
+                await mqtt_adapter.remove_code(slot)
+            except Exception as err:
+                connection.send_error(
+                    msg["id"], "mqtt_error", f"Failed to remove code via MQTT: {err}"
+                )
+                return
+
+        await storage.remove(slot, method)
+        _LOGGER.info("Removed local %s record from slot %s", method, slot)
+        connection.send_result(
+            msg["id"],
+            {"success": True, "physical_removal": method == CREDENTIAL_PIN},
+        )
 
     except Exception as err:
         _LOGGER.error("Error removing code: %s", err)
@@ -247,6 +270,7 @@ async def handle_remove(
         vol.Required("type"): WS_TYPE_UPDATE_EXPIRY,
         vol.Required("slot"): int,
         vol.Optional("expiry"): str,
+        vol.Optional("method", default=CREDENTIAL_PIN): vol.In([CREDENTIAL_PIN]),
     }
 )
 @websocket_api.async_response
@@ -262,6 +286,7 @@ async def handle_update_expiry(
 
         slot = msg["slot"]
         expiry = msg.get("expiry")
+        method = msg["method"]
 
         # Validate expiry format if provided
         if expiry:
@@ -275,7 +300,7 @@ async def handle_update_expiry(
 
         # Update storage
         try:
-            entry = await storage.update_expiry(slot, expiry)
+            entry = await storage.update_expiry(slot, expiry, method)
             _LOGGER.info("Updated expiry for slot %s to %s", slot, expiry)
             connection.send_result(msg["id"], {"entry": entry.to_dict()})
         except Exception as err:
@@ -291,6 +316,7 @@ async def handle_update_expiry(
         vol.Required("type"): WS_TYPE_UPDATE_NAME,
         vol.Required("slot"): int,
         vol.Required("name"): str,
+        vol.Optional("method", default=CREDENTIAL_PIN): vol.In(CREDENTIAL_METHODS),
     }
 )
 @websocket_api.async_response
@@ -306,20 +332,23 @@ async def handle_update_name(
 
         slot = msg["slot"]
         name = msg["name"]
+        method = msg["method"]
 
         if not name or not name.strip():
             connection.send_error(msg["id"], "invalid_input", "Name cannot be empty")
             return
 
         # Check if slot exists
-        entry = storage.get(slot)
+        entry = storage.get(slot, method)
         if entry is None:
-            connection.send_error(msg["id"], "not_found", f"Slot {slot} not found")
+            connection.send_error(
+                msg["id"], "not_found", f"{method} slot {slot} not found"
+            )
             return
 
         # Update storage
         try:
-            entry = await storage.update_name(slot, name)
+            entry = await storage.update_name(slot, name, method)
             _LOGGER.info("Updated name for slot %s to '%s'", slot, name)
             connection.send_result(msg["id"], {"entry": entry.to_dict()})
         except Exception as err:
@@ -357,6 +386,11 @@ async def handle_update_pin(
         entry = storage.get(slot)
         if entry is None:
             connection.send_error(msg["id"], "not_found", f"Slot {slot} not found")
+            return
+        if is_reserved_pin_slot(slot, config["reserved_slots"]):
+            connection.send_error(
+                msg["id"], "slot_reserved", f"Slot {slot} is reserved"
+            )
             return
 
         # Validate PIN code length matches configured pin_length
@@ -449,6 +483,7 @@ async def handle_config(
                 "auto_expire": config.get(CONF_AUTO_EXPIRE, True),
                 "cleanup_time": config.get(CONF_CLEANUP_TIME, "03:00:00"),
                 "pin_length": config.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH),
+                "reserved_slots": config.get("reserved_slots", []),
             },
         )
 

@@ -19,6 +19,7 @@ from .const import (
     SERVICE_REMOVE_CODE,
     SERVICE_UPDATE_EXPIRY,
     SERVICE_UPDATE_NAME,
+    SERVICE_SET_CREDENTIAL_NAME,
     SERVICE_UPDATE_PIN,
     SERVICE_LIST_CODES,
     SERVICE_CLEANUP_EXPIRED,
@@ -56,6 +57,14 @@ SERVICE_UPDATE_EXPIRY_SCHEMA = vol.Schema(
 SERVICE_UPDATE_NAME_SCHEMA = vol.Schema(
     {
         vol.Required("slot"): cv.positive_int,
+        vol.Required("name"): cv.string,
+    }
+)
+
+SERVICE_SET_CREDENTIAL_NAME_SCHEMA = vol.Schema(
+    {
+        vol.Required("method"): vol.In(["rfid", "fingerprint"]),
+        vol.Required("slot"): vol.All(cv.positive_int, vol.Range(min=0, max=65535)),
         vol.Required("name"): cv.string,
     }
 )
@@ -340,6 +349,16 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         except Exception as err:
             _LOGGER.warning("[handle_update_pin] Failed to update timestamp: %s", err)
 
+    async def handle_set_credential_name(call: ServiceCall) -> None:
+        """Set a local activity label without contacting the lock."""
+        storage = hass.data[DOMAIN]["storage"]
+        try:
+            await storage.set_credential_name(
+                call.data["method"], call.data["slot"], call.data["name"]
+            )
+        except Exception as err:
+            raise HomeAssistantError("Failed to save credential name") from err
+
     async def handle_cleanup_expired(call: ServiceCall) -> None:
         """Handle cleanup_expired service call - manually trigger expired code cleanup."""
         _LOGGER.info("[handle_cleanup_expired] Manual cleanup triggered")
@@ -402,6 +421,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     # Register services
     hass.services.async_register(
         DOMAIN,
+        SERVICE_SET_CREDENTIAL_NAME,
+        handle_set_credential_name,
+        schema=SERVICE_SET_CREDENTIAL_NAME_SCHEMA,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
         SERVICE_ADD_CODE,
         handle_add_code,
         schema=SERVICE_ADD_CODE_SCHEMA,
@@ -457,6 +483,7 @@ async def async_unload_services(hass: HomeAssistant) -> None:
     hass.services.async_remove(DOMAIN, SERVICE_REMOVE_CODE)
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_EXPIRY)
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_NAME)
+    hass.services.async_remove(DOMAIN, SERVICE_SET_CREDENTIAL_NAME)
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_PIN)
     hass.services.async_remove(DOMAIN, SERVICE_LIST_CODES)
     hass.services.async_remove(DOMAIN, SERVICE_CLEANUP_EXPIRED)

@@ -129,6 +129,37 @@ update_pin:
       selector:
         text:
 
+set_credential_name:
+  name: Set Credential Name
+  description: Set a local activity name for an existing RFID or fingerprint slot. Does not enroll credentials or change the lock.
+  fields:
+    method:
+      name: Method
+      description: Credential method, separate from PIN code slots
+      required: true
+      selector:
+        select:
+          options:
+            - rfid
+            - fingerprint
+    slot:
+      name: Slot Number
+      description: RFID or fingerprint slot number reported by the lock
+      required: true
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 65535
+          mode: box
+    name:
+      name: Name
+      description: Friendly activity name; an empty string removes the saved name
+      required: true
+      example: "John Doe"
+      selector:
+        text:
+
 list_codes:
   name: List Codes
   description: List all PIN codes

@@ -16,6 +16,7 @@ A complete HACS integration for managing PIN codes on Nimly smart locks via Zigb
 - 🌐 **Bilingual** - Full support for English and Swedish
 - 🔧 **Service Calls** - Control via Home Assistant services and automations
 - 📡 **WebSocket API** - Real-time updates via WebSocket commands
+- 🔔 **Named Lock Activity** - Event-based lock/unlock notifications in English or Swedish, with PIN, RFID and fingerprint names
 
 ## Installation
 
@@ -125,6 +126,85 @@ List all configured codes (returns service response).
 service: nimlykoder.list_codes
 ```
 
+#### `nimlykoder.set_credential_name`
+
+Name an existing RFID tag or fingerprint slot for activity attribution:
+
+```yaml
+service: nimlykoder.set_credential_name
+data:
+  method: rfid  # rfid or fingerprint
+  slot: 7      # 0..65535; slot 0 can be valid
+  name: "Alex"
+```
+
+An empty `name` removes the name. This stores a name only: it does **not** enroll,
+modify or delete credentials on the lock. Enroll RFID tags and fingerprints using
+the lock's supported procedure first. PIN attribution uses the names of existing
+Nimlykoder PIN entries; it never matches PIN digits.
+
+### Lock/unlock notifications
+
+[Import the notification blueprint](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FFredrikElliot%2Fha-nimly-manager%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fnimlykoder%2Flock_activity.yaml)
+to notify a Home Assistant Companion App device. Select the lock configured in
+Nimlykoder, the phone, lock/unlock/both, automatic and unnamed-activity filters,
+and English or Swedish. Disabling unnamed activity excludes **every** event
+without a matched name, even manual, remote and automatic operations.
+Notifications always include the localized credential/operation method, even
+when a person's name is known.
+
+The integration emits `nimlykoder_lock_activity` for fresh operation reports and
+provides `last_unlocked_by` and `last_locked_by` sensors for display. Automate from
+the **event**, not sensor state changes: the same person can operate the lock
+repeatedly without changing a sensor's state. The blueprint queues these events.
+Legacy entries without a configured lock emit `entity_id: null`; configure the
+lock entity before using the blueprint.
+
+**Requirements and replay safety:** use a recent Zigbee2MQTT **onesti** converter
+that reports `action: lock` or `action: unlock` together with
+`action_source_name` (and `action_user` for credential slots). Older versions
+reporting only cached `last_*` values cannot provide reliable attribution:
+upgrade Zigbee2MQTT. Neither cached `last_*` values nor PIN digits are used.
+`self` means automatic, `zigbee` means remote, and ambiguous sources (including
+model 05 ambiguity) remain unattributed. Slot 0 can be a valid credential slot.
+
+**`advanced.last_seen` is mandatory**: without a valid report timestamp, there
+are **no activity events or activity sensor updates**. Configure Zigbee2MQTT:
+
+```yaml
+# Zigbee2MQTT configuration.yaml (merge with your existing settings)
+advanced:
+  last_seen: ISO_8601
+  cache_state_send_on_startup: false
+  # Optional additional cache hardening:
+  cache_state_persistent: false
+devices:
+  '0xYOUR_DEVICE_IEEE_ADDRESS':
+    retain: false
+```
+
+`ISO_8601_local` (with a UTC offset) and `epoch` are also supported.
+Retained messages and messages received during Home Assistant startup are
+discarded, as are reports with missing/invalid `last_seen` or a timestamp older
+than the current MQTT subscription. This rejects stale cache replays after a
+restart or reload, including non-retained replays. The event timestamp is the
+report's `last_seen`, normalized to UTC, not the time of receipt.
+Keep `cache_state_send_on_startup: false` and device `retain: false`;
+`cache_state_persistent: false` is optional extra hardening. Clear any previously
+retained device-state message from the MQTT broker as well.
+
+Duplicate reports are identified by timestamp, action, source and slot, not a
+payload/time-window debounce. Identical uses with different timestamps each emit
+an event. Unknown source values are sanitized to `unknown`; no arbitrary
+upstream source text is exposed.
+
+Events and notifications expose no PINs, RFID identifiers or fingerprint data;
+names and activity metadata are visible to Home Assistant and notification
+recipients, so treat them as personal information. HomeKit supports standard
+lock-state notifications only, **not named native HomeKit notifications**.
+See [event fields and a plain Home Assistant notification automation](examples/automations.md#lockunlock-activity-notifications)
+for an option that needs no phone app.
+
 ### Automations
 
 #### Auto-add guest code on calendar event
@@ -160,7 +240,7 @@ automation:
   - Supports both add and remove operations
   
 - **Services (`services.py`)**: Home Assistant service calls for automation
-  - `add_code`, `remove_code`, `update_expiry`, `list_codes`
+  - `add_code`, `remove_code`, `update_expiry`, `list_codes`, `set_credential_name`
   - Policy enforcement (guest expiry, reserved slots, overwrite protection)
   - Service response support for `list_codes`
   

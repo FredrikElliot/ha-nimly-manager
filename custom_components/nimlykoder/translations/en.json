@@ -65,7 +65,51 @@
       "invalid_slot_range": "Minimum slot must be less than maximum slot"
     }
   },
+  "entity": {
+    "sensor": {
+      "last_unlocked_by": {
+        "name": "Last unlocked by",
+        "state": {
+          "manual": "Manual",
+          "remote": "Remote",
+          "automatic": "Automatic",
+          "unattributed": "Unattributed",
+          "unknown_credential": "Unknown credential",
+          "unknown": "Unknown"
+        }
+      },
+      "last_locked_by": {
+        "name": "Last locked by",
+        "state": {
+          "manual": "Manual",
+          "remote": "Remote",
+          "automatic": "Automatic",
+          "unattributed": "Unattributed",
+          "unknown_credential": "Unknown credential",
+          "unknown": "Unknown"
+        }
+      }
+    }
+  },
   "services": {
+    "set_credential_name": {
+      "name": "Set Credential Name",
+      "description": "Set a local activity name for an existing RFID or fingerprint slot. Does not enroll credentials or change the lock.",
+      "fields": {
+        "method": {
+          "name": "Method",
+          "description": "Credential method: rfid or fingerprint, separate from PIN code slots"
+        },
+        "slot": {
+          "name": "Slot Number",
+          "description": "RFID or fingerprint slot number reported by the lock (0-65535)"
+        },
+        "name": {
+          "name": "Name",
+          "description": "Friendly activity name; an empty string removes the saved name"
+        }
+      }
+    },
     "add_code": {
       "name": "Add Code",
       "description": "Add a new PIN code to the lock",

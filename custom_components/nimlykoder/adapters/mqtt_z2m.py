@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +26,26 @@ class MqttZ2mAdapter:
             "[MqttZ2mAdapter] Initialized with base_topic='%s', MQTT_ENABLED=%s",
             self.base_topic,
             MQTT_ENABLED,
+        )
+
+    async def async_subscribe_activity(self, handler):
+        """Subscribe to reports on the existing connection, not command topics."""
+        from homeassistant.components import mqtt
+
+        @callback
+        def message_received(message):
+            if not self.hass.is_running or message.retain:
+                return
+            try:
+                payload = json.loads(message.payload)
+            except (ValueError, TypeError, UnicodeDecodeError):
+                return
+            handler(payload)
+
+        # QoS 0 avoids broker retransmissions; report timestamps handle upstream
+        # duplicates without a time-window debounce that could lose real uses.
+        return await mqtt.async_subscribe(
+            self.hass, self.base_topic, message_received, qos=0
         )
 
     async def add_code(self, slot: int, pin_code: str, user_type: str = "unrestricted") -> None:

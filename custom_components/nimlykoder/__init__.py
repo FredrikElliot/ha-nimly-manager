@@ -5,6 +5,7 @@ import logging
 from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers import entity_registry as er
@@ -34,6 +35,7 @@ from .adapters.mqtt_z2m import MqttZ2mAdapter
 from .services import async_setup_services, async_unload_services
 from .websocket import async_register_websocket_handlers
 from .panel import async_register_panel, async_unregister_panel
+from .activity import EVENT_LOCK_ACTIVITY, LockActivity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -241,6 +243,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("[async_setup_entry] MQTT connection verified successfully")
 
     # Store data
+    activity_tracker = LockActivity(storage)
+    if not hass.is_running:
+        @callback
+        def homeassistant_started(event):
+            activity_tracker.started = event.time_fired
+
+        entry.async_on_unload(
+            hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, homeassistant_started
+            )
+        )
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN] = {
         "storage": storage,
@@ -248,7 +262,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config": config,
         "entry": entry,
         "cleanup_unsub": None,
+        "activity": activity_tracker,
     }
+
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+
+    @callback
+    def activity_received(payload):
+        activity = activity_tracker.process(payload)
+        if activity:
+            hass.bus.async_fire(
+                EVENT_LOCK_ACTIVITY,
+                {"entry_id": entry.entry_id, "entity_id": lock_entity, **activity},
+            )
+
+    entry.async_on_unload(
+        await mqtt_adapter.async_subscribe_activity(activity_received)
+    )
 
     # Register services
     _LOGGER.debug("[async_setup_entry] Registering services...")
@@ -274,6 +304,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    if not await hass.config_entries.async_unload_platforms(entry, ["sensor"]):
+        return False
+
     # Cancel cleanup scheduler
     data = hass.data.get(DOMAIN)
     if data and data.get("cleanup_unsub"):

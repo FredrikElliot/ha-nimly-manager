@@ -1,6 +1,7 @@
 """Storage management for Nimlykoder integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime, date
@@ -44,23 +45,44 @@ class CodeEntry:
 
 
 class NimlykoderStorage:
-    """Manage persistent storage for PIN codes."""
+    """Manage persistent PIN entries and method-scoped activity names."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize storage."""
         self.hass = hass
         self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._data: dict[str, dict[str, Any]] = {}
+        self._credential_names: dict[str, dict[str, str]] = {}
+        self._credential_names_lock = asyncio.Lock()
 
     async def async_load(self) -> None:
         """Load data from storage."""
         data = await self._store.async_load()
+        self._credential_names = {}
         if data is None:
             self._data = {}
         else:
             # Handle migration if needed
             if data.get("version", 1) == STORAGE_VERSION:
                 self._data = data.get("entries", {})
+                credential_names = data.get("credential_names", {})
+                if isinstance(credential_names, dict):
+                    for method in ("rfid", "fingerprint"):
+                        names = credential_names.get(method, {})
+                        if not isinstance(names, dict):
+                            continue
+                        self._credential_names[method] = {
+                            slot: name
+                            for slot, name in names.items()
+                            if isinstance(slot, str)
+                            and slot.isascii()
+                            and slot.isdigit()
+                            and len(slot) <= 5
+                            and 0 <= int(slot) <= 65535
+                            and str(int(slot)) == slot
+                            and isinstance(name, str)
+                            and name.strip()
+                        }
             else:
                 _LOGGER.warning("Unknown storage version, resetting data")
                 self._data = {}
@@ -71,6 +93,7 @@ class NimlykoderStorage:
             {
                 "version": STORAGE_VERSION,
                 "entries": self._data,
+                "credential_names": self._credential_names,
             }
         )
 
@@ -88,6 +111,40 @@ class NimlykoderStorage:
         if slot_str not in self._data:
             return None
         return CodeEntry.from_dict(slot, self._data[slot_str])
+
+    def get_credential_name(self, method: str, slot: int) -> str | None:
+        """Resolve an activity name without mixing credential namespaces."""
+        if type(slot) is not int or not 0 <= slot <= 65535:
+            return None
+        if method == "pin":
+            entry = self.get(slot)
+            return entry.name if entry else None
+        if method not in ("rfid", "fingerprint"):
+            return None
+        return self._credential_names.get(method, {}).get(str(slot))
+
+    async def set_credential_name(self, method: str, slot: int, name: str) -> None:
+        """Set a local RFID/fingerprint label; an empty name removes it."""
+        if method not in ("rfid", "fingerprint"):
+            raise ValueError("Method must be rfid or fingerprint")
+        if type(slot) is not int or not 0 <= slot <= 65535:
+            raise ValueError("Slot must be an integer from 0 to 65535")
+        if not isinstance(name, str):
+            raise ValueError("Name must be a string")
+
+        async with self._credential_names_lock:
+            previous = self._credential_names
+            names = dict(previous.get(method, {}))
+            if name.strip():
+                names[str(slot)] = name.strip()
+            else:
+                names.pop(str(slot), None)
+            self._credential_names = {**previous, method: names}
+            try:
+                await self.async_save()
+            except Exception:
+                self._credential_names = previous
+                raise
 
     async def add(
         self,

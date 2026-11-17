@@ -65,7 +65,51 @@
       "invalid_slot_range": "Minsta plats måste vara mindre än högsta plats"
     }
   },
+  "entity": {
+    "sensor": {
+      "last_unlocked_by": {
+        "name": "Senast upplåst av",
+        "state": {
+          "manual": "Manuellt",
+          "remote": "Fjärrstyrt",
+          "automatic": "Automatiskt",
+          "unattributed": "Ej identifierad",
+          "unknown_credential": "Okänd behörighet",
+          "unknown": "Okänd"
+        }
+      },
+      "last_locked_by": {
+        "name": "Senast låst av",
+        "state": {
+          "manual": "Manuellt",
+          "remote": "Fjärrstyrt",
+          "automatic": "Automatiskt",
+          "unattributed": "Ej identifierad",
+          "unknown_credential": "Okänd behörighet",
+          "unknown": "Okänd"
+        }
+      }
+    }
+  },
   "services": {
+    "set_credential_name": {
+      "name": "Ange behörighetsnamn",
+      "description": "Ange ett lokalt aktivitetsnamn för en befintlig RFID- eller fingeravtrycksplats. Registrerar inga behörigheter och ändrar inte låset.",
+      "fields": {
+        "method": {
+          "name": "Metod",
+          "description": "Behörighetsmetod: rfid eller fingerprint, separat från PIN-kodernas platser"
+        },
+        "slot": {
+          "name": "Platsnummer",
+          "description": "RFID- eller fingeravtrycksplats som rapporteras av låset (0-65535)"
+        },
+        "name": {
+          "name": "Namn",
+          "description": "Vänligt aktivitetsnamn; en tom sträng tar bort det sparade namnet"
+        }
+      }
+    },
     "add_code": {
       "name": "Lägg till Kod",
       "description": "Lägg till en ny PIN-kod till låset",

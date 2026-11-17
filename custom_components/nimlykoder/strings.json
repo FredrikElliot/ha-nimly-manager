@@ -13,7 +13,8 @@
           "auto_expire": "Enable Automatic Expiry Cleanup",
           "cleanup_time": "Daily Cleanup Time",
           "overwrite_protection": "Enable Overwrite Protection",
-          "pin_length": "PIN Code Length"
+          "pin_length": "PIN Code Length",
+          "allowed_users": "Users allowed to manage codes"
         },
         "data_description": {
           "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
@@ -23,7 +24,8 @@
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
           "overwrite_protection": "Prevent accidental overwriting of existing codes",
-          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work."
+          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work.",
+          "allowed_users": "Select non-admin users who can manage lock codes. Administrators always have access."
         }
       }
     },
@@ -47,7 +49,8 @@
           "auto_expire": "Enable Automatic Expiry Cleanup",
           "cleanup_time": "Daily Cleanup Time",
           "overwrite_protection": "Enable Overwrite Protection",
-          "pin_length": "PIN Code Length"
+          "pin_length": "PIN Code Length",
+          "allowed_users": "Users allowed to manage codes"
         },
         "data_description": {
           "lock_entity": "Select your Nimly lock entity. This should be the lock device from your Zigbee2MQTT integration.",
@@ -57,7 +60,8 @@
           "auto_expire": "Automatically remove expired guest codes at the scheduled time",
           "cleanup_time": "Time of day when expired codes will be removed",
           "overwrite_protection": "Prevent accidental overwriting of existing codes",
-          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work."
+          "pin_length": "Choose 4 or 6 digits. This only affects PINs added or changed from now on. Existing PINs are stored on your lock, not in Home Assistant; this setting does not change them, and they should continue to work.",
+          "allowed_users": "Select non-admin users who can manage lock codes. Administrators always have access."
         }
       }
     },

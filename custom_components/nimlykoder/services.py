@@ -25,6 +25,7 @@ from .const import (
     TYPE_PERMANENT,
     TYPE_GUEST,
 )
+from .access import require_service_access
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -403,7 +404,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN,
         SERVICE_ADD_CODE,
-        handle_add_code,
+        require_service_access(hass, handle_add_code),
         schema=SERVICE_ADD_CODE_SCHEMA,
         supports_response=True,
     )
@@ -411,42 +412,42 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN,
         SERVICE_REMOVE_CODE,
-        handle_remove_code,
+        require_service_access(hass, handle_remove_code),
         schema=SERVICE_REMOVE_CODE_SCHEMA,
     )
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_UPDATE_EXPIRY,
-        handle_update_expiry,
+        require_service_access(hass, handle_update_expiry),
         schema=SERVICE_UPDATE_EXPIRY_SCHEMA,
     )
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_UPDATE_NAME,
-        handle_update_name,
+        require_service_access(hass, handle_update_name),
         schema=SERVICE_UPDATE_NAME_SCHEMA,
     )
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_UPDATE_PIN,
-        handle_update_pin,
+        require_service_access(hass, handle_update_pin),
         schema=SERVICE_UPDATE_PIN_SCHEMA,
     )
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_LIST_CODES,
-        handle_list_codes,
+        require_service_access(hass, handle_list_codes),
         supports_response=True,
     )
 
     hass.services.async_register(
         DOMAIN,
         SERVICE_CLEANUP_EXPIRED,
-        handle_cleanup_expired,
+        require_service_access(hass, handle_cleanup_expired),
         supports_response=True,
     )
 

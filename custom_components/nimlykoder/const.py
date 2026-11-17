@@ -11,6 +11,7 @@ CONF_AUTO_EXPIRE = "auto_expire"
 CONF_CLEANUP_TIME = "cleanup_time"
 CONF_OVERWRITE_PROTECTION = "overwrite_protection"
 CONF_PIN_LENGTH = "pin_length"
+CONF_ALLOWED_USERS = "allowed_users"
 
 # Legacy config key (for migration)
 CONF_MQTT_TOPIC = "mqtt_topic"

@@ -7,7 +7,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
@@ -21,6 +21,7 @@ from .const import (
     CONF_CLEANUP_TIME,
     CONF_OVERWRITE_PROTECTION,
     CONF_PIN_LENGTH,
+    CONF_ALLOWED_USERS,
     DEFAULT_SLOT_MIN,
     DEFAULT_SLOT_MAX,
     DEFAULT_RESERVED_SLOTS,
@@ -48,6 +49,18 @@ def _parse_reserved_slots(value: Any) -> list[int]:
 def _format_reserved_slots(slots: list[int]) -> str:
     """Format reserved slots list as comma-separated string."""
     return ", ".join(str(x) for x in slots)
+
+
+async def _async_user_selector(hass: HomeAssistant) -> selector.SelectSelector:
+    """Create a selector populated with Home Assistant users."""
+    users = await hass.auth.async_get_users()
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=[{"label": user.name, "value": user.id} for user in users],
+            multiple=True,
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    )
 
 
 class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -85,6 +98,7 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         # Build schema with defaults
+        user_selector = await _async_user_selector(self.hass)
         data_schema = vol.Schema(
             {
                 vol.Optional("name", default="Nimlykoder"): str,
@@ -113,6 +127,7 @@ class NimlykoderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         translation_key="pin_length",
                     )
                 ),
+                vol.Required(CONF_ALLOWED_USERS, default=[]): user_selector,
             }
         )
 
@@ -180,6 +195,8 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
         if overwrite_protection is None:
             overwrite_protection = DEFAULT_OVERWRITE_PROTECTION
         pin_length = options.get(CONF_PIN_LENGTH, DEFAULT_PIN_LENGTH)
+        allowed_users = options.get(CONF_ALLOWED_USERS, [])
+        user_selector = await _async_user_selector(self.hass)
 
         data_schema = vol.Schema(
             {
@@ -227,6 +244,10 @@ class NimlykoderOptionsFlow(config_entries.OptionsFlow):
                         translation_key="pin_length",
                     )
                 ),
+                vol.Required(
+                    CONF_ALLOWED_USERS,
+                    default=allowed_users,
+                ): user_selector,
             }
         )
 

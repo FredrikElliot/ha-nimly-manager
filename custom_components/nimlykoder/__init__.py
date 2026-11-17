@@ -5,6 +5,7 @@ import logging
 from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers import entity_registry as er
@@ -242,6 +243,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("[async_setup_entry] MQTT connection verified successfully")
 
     # Store data
+    activity_tracker = LockActivity(storage)
+    if not hass.is_running:
+        @callback
+        def homeassistant_started(event):
+            activity_tracker.started = event.time_fired
+
+        entry.async_on_unload(
+            hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, homeassistant_started
+            )
+        )
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN] = {
         "storage": storage,
@@ -249,14 +262,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config": config,
         "entry": entry,
         "cleanup_unsub": None,
-        "activity": LockActivity(storage),
+        "activity": activity_tracker,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
     @callback
     def activity_received(payload):
-        activity = hass.data[DOMAIN]["activity"].process(payload)
+        activity = activity_tracker.process(payload)
         if activity:
             hass.bus.async_fire(
                 EVENT_LOCK_ACTIVITY,

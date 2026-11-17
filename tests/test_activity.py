@@ -97,6 +97,13 @@ class ActivityTests(unittest.TestCase):
         self.assertIsNotNone(self.tracker.process(self.report()))
         self.assertIsNone(self.tracker.process(self.report()))
 
+    def test_startup_completion_advances_freshness_boundary(self):
+        self.tracker.started = self.started + timedelta(seconds=2)
+        self.assertIsNone(self.tracker.process(self.report()))
+        self.assertIsNotNone(self.tracker.process(self.report(
+            last_seen=(self.started + timedelta(seconds=3)).isoformat()
+        )))
+
     def test_retained_startup_and_unrelated_state_are_ignored(self):
         for payload in (
             self.report(last_seen=self.started.isoformat()),

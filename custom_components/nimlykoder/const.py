@@ -28,12 +28,22 @@ DEFAULT_PIN_LENGTH = 6
 ALLOWED_PIN_LENGTHS = [4, 6]
 
 # Storage
-STORAGE_VERSION = 1
+STORAGE_VERSION = 2
 STORAGE_KEY = "nimlykoder_codes"
 
 # Entry types
 TYPE_PERMANENT = "permanent"
 TYPE_GUEST = "guest"
+
+# Credential methods
+CREDENTIAL_PIN = "pin"
+CREDENTIAL_TAG = "tag"
+CREDENTIAL_FINGERPRINT = "fingerprint"
+CREDENTIAL_METHODS = (
+    CREDENTIAL_PIN,
+    CREDENTIAL_TAG,
+    CREDENTIAL_FINGERPRINT,
+)
 
 # Services
 SERVICE_ADD_CODE = "add_code"

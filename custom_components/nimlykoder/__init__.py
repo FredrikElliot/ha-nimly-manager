@@ -248,7 +248,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config": config,
         "entry": entry,
         "cleanup_unsub": None,
+        "credential_reports_unsub": None,
     }
+
+    hass.data[DOMAIN]["credential_reports_unsub"] = (
+        await mqtt_adapter.async_subscribe_credential_reports(storage)
+    )
 
     # Register services
     _LOGGER.debug("[async_setup_entry] Registering services...")
@@ -278,6 +283,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = hass.data.get(DOMAIN)
     if data and data.get("cleanup_unsub"):
         data["cleanup_unsub"]()
+    if data and data.get("credential_reports_unsub"):
+        data["credential_reports_unsub"]()
 
     # Unregister services
     await async_unload_services(hass)

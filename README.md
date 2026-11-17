@@ -6,6 +6,18 @@
 
 A complete HACS integration for managing PIN codes on Nimly smart locks via Zigbee2MQTT.
 
+PINs, tags, and fingerprints reported during successful attributed lock operations are
+discovered on use and stored separately by credential method and slot. The lock does
+not provide a complete credential inventory through this integration, so credentials
+that have not been used are not discovered automatically.
+
+Zigbee2MQTT supports clearing PINs through its `pin_code` command. No credential-specific
+tag or fingerprint deletion command is documented or used here. Removing a tag or
+fingerprint in Nimlykoder removes only its local name/record and does not revoke access;
+delete it using the lock keypad or vendor app. A locally removed credential can be
+discovered again if it is still enrolled and used. The integration does not store PIN
+digits, tag secrets, or fingerprint data from operation reports.
+
 ## Features
 
 - ✅ **Persistent Storage** - All PIN codes stored persistently across restarts
@@ -228,7 +240,7 @@ To change language:
 ### PIN Code Security
 
 - **PIN codes are transmitted via MQTT**: Ensure your MQTT broker is secured with authentication and TLS
-- **Storage encryption**: PIN codes are stored in Home Assistant's storage, protected by file system permissions
+- **Credential metadata** is stored in Home Assistant's storage; PIN digits are not stored by this integration
 - **No PIN code logging**: PIN codes are never logged in Home Assistant logs
 - **MQTT QoS 1**: Messages use Quality of Service level 1 for reliable delivery
 

@@ -38,6 +38,27 @@ jobs:
           python -m py_compile custom_components/nimlykoder/*.py
           python -m py_compile custom_components/nimlykoder/adapters/*.py
 
+  frontend:
+    name: Frontend
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build panel
+        run: |
+          cd custom_components/nimlykoder/frontend
+          npm ci
+          npm run build
+          git diff --exit-code -- dist/nimlykoder-panel.js
+
   hacs:
     name: HACS Validation
     runs-on: ubuntu-latest

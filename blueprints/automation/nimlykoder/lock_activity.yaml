@@ -1,0 +1,153 @@
+blueprint:
+  name: "Nimlykoder: Lock activity / Låsaktivitet"
+  description: >-
+    Notify a Companion App device about fresh Nimlykoder lock/unlock events,
+    including configured credential names. Requires a configured lock entity
+    and recent Zigbee2MQTT onesti operation reports with advanced.last_seen
+    enabled (for example ISO_8601). Uses events, not sensor
+    changes, so repeated operations by the same person are included.
+    / Meddela en Companion App-enhet om nya lås-/upplåsningshändelser med
+    konfigurerade namn. Kräver en konfigurerad låsentitet och aktuella
+    Zigbee2MQTT onesti-rapporter med advanced.last_seen aktiverat (till exempel
+    ISO_8601). Upprepade händelser från samma person ingår.
+  domain: automation
+  source_url: https://github.com/FredrikElliot/ha-nimly-manager/blob/main/blueprints/automation/nimlykoder/lock_activity.yaml
+  input:
+    lock_entity:
+      name: "Lock / Lås"
+      description: "The lock configured in Nimlykoder. / Låset som konfigurerats i Nimlykoder."
+      selector:
+        entity:
+          domain: lock
+    notification_device:
+      name: "Notification device / Aviseringsenhet"
+      selector:
+        device:
+          integration: mobile_app
+    activity:
+      name: "Activity / Händelse"
+      default: both
+      selector:
+        select:
+          options:
+            - label: "Lock and unlock / Låsning och upplåsning"
+              value: both
+            - label: "Lock only / Endast låsning"
+              value: lock
+            - label: "Unlock only / Endast upplåsning"
+              value: unlock
+    include_automatic:
+      name: "Include automatic operations / Inkludera automatiska händelser"
+      default: true
+      selector:
+        boolean:
+    include_unattributed:
+      name: "Include operations without a name / Inkludera händelser utan namn"
+      description: >-
+        When disabled, all events without a matched name are excluded, including
+        manual, remote and automatic operations. Both switches must allow an
+        unnamed automatic operation. / Om avstängt utesluts alla händelser utan
+        matchat namn, även manuella, fjärrstyrda och automatiska händelser.
+        Båda reglagen måste tillåta en automatisk händelse utan namn.
+      default: true
+      selector:
+        boolean:
+    language:
+      name: "Notification language / Aviseringsspråk"
+      default: en
+      selector:
+        select:
+          options:
+            - label: English
+              value: en
+            - label: Svenska
+              value: sv
+
+mode: queued
+max: 50
+
+variables:
+  selected_lock: !input lock_entity
+  selected_activity: !input activity
+  allow_automatic: !input include_automatic
+  allow_unattributed: !input include_unattributed
+  notification_language: !input language
+
+trigger:
+  - platform: event
+    event_type: nimlykoder_lock_activity
+    event_data:
+      entity_id: !input lock_entity
+
+condition:
+  - condition: template
+    value_template: >-
+      {{ trigger.event.data.get('action') in ['lock', 'unlock']
+         and (selected_activity == 'both'
+              or trigger.event.data.get('action') == selected_activity) }}
+  - condition: template
+    value_template: >-
+      {{ allow_automatic or trigger.event.data.get('method') != 'automatic' }}
+  - condition: template
+    value_template: >-
+      {{ allow_unattributed or (trigger.event.data.get('name') or '') | trim != '' }}
+
+action:
+  - variables:
+      lock_name: >-
+        {{ state_attr(selected_lock, 'friendly_name')
+           or ('Låset' if notification_language == 'sv' else 'The lock') }}
+      actor_name: >-
+        {%- set names = {
+          'pin': 'Någon med en namnlös PIN-kod',
+          'rfid': 'Någon med en namnlös RFID-tagg',
+          'fingerprint': 'Någon med ett namnlöst fingeravtryck',
+          'manual': 'Manuell manövrering',
+          'remote': 'Fjärrstyrning',
+          'automatic': 'Automatiken',
+          'unattributed': 'Okänd person',
+          'unknown': 'Okänd person'
+        } if notification_language == 'sv' else {
+          'pin': 'Someone using an unnamed PIN',
+          'rfid': 'Someone using an unnamed RFID tag',
+          'fingerprint': 'Someone using an unnamed fingerprint',
+          'manual': 'Manual operation',
+          'remote': 'Remote control',
+          'automatic': 'Automatic operation',
+          'unattributed': 'Unknown person',
+          'unknown': 'Unknown person'
+        } -%}
+        {{ trigger.event.data.get('name') or names.get(
+          trigger.event.data.get('method'),
+          'Okänd person' if notification_language == 'sv' else 'Unknown person') }}
+      action_text: >-
+        {{ {'lock': 'låste', 'unlock': 'låste upp'}[trigger.event.data.action]
+           if notification_language == 'sv'
+           else {'lock': 'locked', 'unlock': 'unlocked'}[trigger.event.data.action] }}
+      method_text: >-
+        {%- set methods = {
+          'pin': 'PIN-kod',
+          'rfid': 'RFID-tagg',
+          'fingerprint': 'fingeravtryck',
+          'manual': 'manuellt',
+          'remote': 'fjärrstyrning',
+          'automatic': 'automatiskt',
+          'unattributed': 'utan identifiering',
+          'unknown': 'okänd metod'
+        } if notification_language == 'sv' else {
+          'pin': 'PIN',
+          'rfid': 'RFID tag',
+          'fingerprint': 'fingerprint',
+          'manual': 'manual',
+          'remote': 'remote',
+          'automatic': 'automatic',
+          'unattributed': 'unattributed',
+          'unknown': 'unknown method'
+        } -%}
+        {{ methods.get(trigger.event.data.get('method'),
+           'okänd metod' if notification_language == 'sv' else 'unknown method') }}
+  - device_id: !input notification_device
+    domain: mobile_app
+    type: notify
+    title: "{{ 'Låsaktivitet' if notification_language == 'sv' else 'Lock activity' }}"
+    message: "{{ actor_name }} {{ action_text }} {{ lock_name }} ({{ method_text }})."

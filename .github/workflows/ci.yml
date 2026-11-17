@@ -38,6 +38,9 @@ jobs:
           python -m py_compile custom_components/nimlykoder/*.py
           python -m py_compile custom_components/nimlykoder/adapters/*.py
 
+      - name: Test lock activity
+        run: python -m unittest discover -s tests -v
+
   frontend:
     name: Frontend
     permissions:

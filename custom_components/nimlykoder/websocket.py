@@ -9,7 +9,6 @@ import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     DOMAIN,
@@ -29,6 +28,7 @@ from .const import (
     CONF_PIN_LENGTH,
     DEFAULT_PIN_LENGTH,
 )
+from .access import require_websocket_access
 
 _LOGGER = logging.getLogger(__name__)
 PANEL_TRANSLATION_KEYS = frozenset({"title", "subtitle", "add_code"})
@@ -54,6 +54,7 @@ def async_register_websocket_handlers(hass: HomeAssistant) -> None:
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_list(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -86,6 +87,7 @@ async def handle_list(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_add(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -204,6 +206,7 @@ async def handle_add(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_remove(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -250,6 +253,7 @@ async def handle_remove(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_update_expiry(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -294,6 +298,7 @@ async def handle_update_expiry(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_update_name(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -338,6 +343,7 @@ async def handle_update_name(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_update_pin(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -398,6 +404,7 @@ async def handle_update_pin(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_suggest_slots(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -433,6 +440,7 @@ async def handle_suggest_slots(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_config(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -463,6 +471,7 @@ async def handle_config(
     }
 )
 @websocket_api.async_response
+@require_websocket_access
 async def handle_translations(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,

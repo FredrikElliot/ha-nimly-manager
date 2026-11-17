@@ -11,6 +11,8 @@ CONF_AUTO_EXPIRE = "auto_expire"
 CONF_CLEANUP_TIME = "cleanup_time"
 CONF_OVERWRITE_PROTECTION = "overwrite_protection"
 CONF_PIN_LENGTH = "pin_length"
+CONF_PROTECT_SENSITIVE = "protect_sensitive"
+CONF_Z2M_BASE_TOPIC = "z2m_base_topic"
 
 # Legacy config key (for migration)
 CONF_MQTT_TOPIC = "mqtt_topic"
@@ -23,6 +25,7 @@ DEFAULT_AUTO_EXPIRE = True
 DEFAULT_CLEANUP_TIME = "03:00:00"
 DEFAULT_OVERWRITE_PROTECTION = True
 DEFAULT_PIN_LENGTH = 6
+DEFAULT_Z2M_BASE_TOPIC = "zigbee2mqtt"
 
 # Allowed PIN lengths
 ALLOWED_PIN_LENGTHS = [4, 6]

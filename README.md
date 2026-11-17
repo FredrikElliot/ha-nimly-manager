@@ -229,8 +229,20 @@ To change language:
 
 - **PIN codes are transmitted via MQTT**: Ensure your MQTT broker is secured with authentication and TLS
 - **Storage encryption**: PIN codes are stored in Home Assistant's storage, protected by file system permissions
-- **No PIN code logging**: PIN codes are never logged in Home Assistant logs
+- **Adapter logging**: PIN-bearing MQTT command payloads are omitted from this integration's logs, including development mode. Other components may have independent logging behavior.
 - **MQTT QoS 1**: Messages use Quality of Service level 1 for reliable delivery
+
+### Protect sensitive lock information
+
+In the integration's options, enable **Protect sensitive lock information** to ask Zigbee2MQTT to add `last_used_pin_code` to both `filtered_attributes` and `filtered_cache` for the selected lock. Enter the exact Zigbee2MQTT base topic and confirm the change when prompted. Nimlykoder reads, merges, and verifies the device options through the Zigbee2MQTT bridge API; it does not change global logging settings or other devices. Slot/action/source activity remains available for attribution and notifications.
+
+Disabling this option only stops Nimlykoder from managing/checking the filters; it does **not** remove any filter. Removing the filter later requires a deliberate change in Zigbee2MQTT. Use Zigbee2MQTT 1.27.0 or newer, where both filter options are supported. A successful configuration response verifies the stored options, not all downstream copies.
+
+These filters prevent the attribute from appearing in future Zigbee2MQTT state publications and subsequent cache updates; they act after the radio has delivered the data. They do not redact raw Zigbee or zigbee-herdsman debug logs, guarantee every possible credential leak is prevented, or fix all Zigbee2MQTT logging. The generic Zigbee2MQTT `expose_pin` option is not a substitute for filtering Nimly's separate `last_used_pin_code` attribute. Avoid debug logging during ordinary operation.
+
+Existing Home Assistant history/recorder data, Zigbee2MQTT cache files, retained MQTT messages, logs, and backups may already contain exposed PINs. Review and clean only the relevant lock's historical records and retained state using the tools for each system; do not indiscriminately clear unrelated MQTT messages. Cleanup cannot guarantee that all backups or copies are erased. Change PINs that may have been exposed.
+
+PIN-setting commands continue to carry credentials over MQTT. Keep broker access restricted and use secure transport (TLS) where available.
 
 ### Best Practices
 

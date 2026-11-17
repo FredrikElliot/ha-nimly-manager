@@ -133,6 +133,13 @@ class ActivityTests(unittest.TestCase):
                 self.report()["last_seen"],
             )
 
+    def test_local_iso_offset_is_normalized_and_naive_time_is_rejected(self):
+        result = self.tracker.process(self.report(last_seen="2026-11-17T01:00:01+01:00"))
+        self.assertEqual(result["timestamp"], "2026-11-17T00:00:01+00:00")
+        self.assertIsNone(self.tracker.process(
+            self.report(last_seen="2026-11-17T01:00:02")
+        ))
+
     def test_payload_secrets_are_not_copied(self):
         result = self.tracker.process(self.report(
             last_used_pin_code="123456", pin_code="123456",

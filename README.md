@@ -183,7 +183,7 @@ devices:
     retain: false
 ```
 
-`ISO_8601_local`, `epoch` and `epoch_ms` are also supported `last_seen` formats.
+`ISO_8601_local` (with a UTC offset) and `epoch` are also supported.
 Retained messages and messages received during Home Assistant startup are
 discarded, as are reports with missing/invalid `last_seen` or a timestamp older
 than the current MQTT subscription. This rejects stale cache replays after a

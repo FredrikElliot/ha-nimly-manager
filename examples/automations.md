@@ -303,7 +303,7 @@ If an older Zigbee2MQTT version exposes only those fields, upgrade it. Unknown
 source values are sanitized to `unknown` rather than exposing upstream text.
 
 **Mandatory replay protection:** in Zigbee2MQTT's `configuration.yaml`, set
-`advanced.last_seen: ISO_8601` (`ISO_8601_local`, `epoch` and `epoch_ms` also work).
+`advanced.last_seen: ISO_8601` (`ISO_8601_local` with a UTC offset and `epoch` also work).
 Without it, reports have no usable freshness timestamp: **no activity events or
 activity sensor updates are produced**. The integration discards retained
 messages, messages received during Home Assistant startup, missing/invalid
